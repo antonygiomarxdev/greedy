@@ -12,25 +12,25 @@ import (
 )
 
 type PaperExchange struct {
-	mu         sync.RWMutex
-	books      map[string]*OrderBook
-	feeds      map[string]*PriceFeed
-	balances   map[string]float64
-	orders     map[string]*exchange.Order
-	positions  map[string]*exchange.Position
-	nextID     atomic.Uint64
-	trades     []exchange.Fill
-	feeRate    float64
+	mu        sync.RWMutex
+	books     map[string]*OrderBook
+	feeds     map[string]*PriceFeed
+	balances  map[string]float64
+	orders    map[string]*exchange.Order
+	positions map[string]*exchange.Position
+	nextID    atomic.Uint64
+	trades    []exchange.Fill
+	feeRate   float64
 }
 
 func New(feeRate float64) *PaperExchange {
 	pe := &PaperExchange{
-		books:    make(map[string]*OrderBook),
-		feeds:    make(map[string]*PriceFeed),
-		balances: map[string]float64{"USD": 100000},
-		orders:   make(map[string]*exchange.Order),
+		books:     make(map[string]*OrderBook),
+		feeds:     make(map[string]*PriceFeed),
+		balances:  map[string]float64{"USD": 100000},
+		orders:    make(map[string]*exchange.Order),
 		positions: make(map[string]*exchange.Position),
-		feeRate:  feeRate,
+		feeRate:   feeRate,
 	}
 
 	// Default BTC-USD market

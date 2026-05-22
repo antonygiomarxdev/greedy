@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	SaltSize   = 16
-	NonceSize  = 24
-	KeySize    = 32
-	argonTime  = 1
-	argonMem   = 64 * 1024
+	SaltSize     = 16
+	NonceSize    = 24
+	KeySize      = 32
+	argonTime    = 1
+	argonMem     = 64 * 1024
 	argonThreads = 4
 )
 

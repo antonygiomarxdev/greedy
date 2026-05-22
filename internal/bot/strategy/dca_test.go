@@ -12,9 +12,9 @@ import (
 
 func TestDCA_FirstBuy(t *testing.T) {
 	cfg := config.DCAConfig{
-		Symbol:         "BTC-USD",
-		BaseOrderSize:  100,
-		Frequency:      1 * time.Second,
+		Symbol:        "BTC-USD",
+		BaseOrderSize: 100,
+		Frequency:     1 * time.Second,
 		SafetyOrders: []config.SafetyOrder{
 			{PriceDeviationPct: -5, VolumeScale: 1.5},
 		},
@@ -39,9 +39,9 @@ func TestDCA_FirstBuy(t *testing.T) {
 
 func TestDCA_HoldBeforeFrequency(t *testing.T) {
 	cfg := config.DCAConfig{
-		Symbol:         "BTC-USD",
-		BaseOrderSize:  100,
-		Frequency:      1 * time.Hour,
+		Symbol:        "BTC-USD",
+		BaseOrderSize: 100,
+		Frequency:     1 * time.Hour,
 		SafetyOrders: []config.SafetyOrder{
 			{PriceDeviationPct: -5, VolumeScale: 1.5},
 		},
@@ -70,9 +70,9 @@ func TestDCA_HoldBeforeFrequency(t *testing.T) {
 
 func TestDCA_SafetyOrderTriggered(t *testing.T) {
 	cfg := config.DCAConfig{
-		Symbol:         "BTC-USD",
-		BaseOrderSize:  100,
-		Frequency:      1 * time.Second,
+		Symbol:        "BTC-USD",
+		BaseOrderSize: 100,
+		Frequency:     1 * time.Second,
 		SafetyOrders: []config.SafetyOrder{
 			{PriceDeviationPct: -5, VolumeScale: 1.5},
 		},
@@ -101,7 +101,7 @@ func TestDCA_SafetyOrderTriggered(t *testing.T) {
 		t.Fatalf("expected safety order on drop, got %s", signal.Action)
 	}
 	// Safety order should have scaled quantity
-	baseQty := 100.0 / 50000.0 // ~0.002
+	baseQty := 100.0 / 50000.0           // ~0.002
 	safetyQty := (100.0 * 1.5) / 47000.0 // ~0.00319
 	if signal.Quantity < baseQty {
 		t.Fatalf("expected scaled quantity > base, got %f", signal.Quantity)
@@ -111,9 +111,9 @@ func TestDCA_SafetyOrderTriggered(t *testing.T) {
 
 func TestDCA_Reset(t *testing.T) {
 	cfg := config.DCAConfig{
-		Symbol:         "BTC-USD",
-		BaseOrderSize:  100,
-		Frequency:      1 * time.Hour,
+		Symbol:        "BTC-USD",
+		BaseOrderSize: 100,
+		Frequency:     1 * time.Hour,
 		SafetyOrders: []config.SafetyOrder{
 			{PriceDeviationPct: -5, VolumeScale: 1.5},
 		},

@@ -54,8 +54,8 @@ func TestSignal_ExitTrigger(t *testing.T) {
 		Symbol: "BTC-USD",
 		Ticker: &exchange.Ticker{Price: 50000},
 		Position: &exchange.Position{
-			Symbol:    "BTC-USD",
-			Quantity:  0.02,
+			Symbol:   "BTC-USD",
+			Quantity: 0.02,
 		},
 	}
 

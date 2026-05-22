@@ -31,12 +31,12 @@ type Supervisor struct {
 
 func NewSupervisor(ex exchange.Exchange, database *sql.DB, policy RestartPolicy) *Supervisor {
 	return &Supervisor{
-		bots:    make(map[string]*Bot),
-		cancels: make(map[string]context.CancelFunc),
+		bots:     make(map[string]*Bot),
+		cancels:  make(map[string]context.CancelFunc),
 		exchange: ex,
 		db:       database,
-		policy:  policy,
-		logger:  slog.Default().With("component", "supervisor"),
+		policy:   policy,
+		logger:   slog.Default().With("component", "supervisor"),
 	}
 }
 

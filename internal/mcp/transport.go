@@ -19,9 +19,9 @@ type jsonRPCRequest struct {
 }
 
 type jsonRPCResponse struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      interface{} `json:"id"`
-	Result  interface{} `json:"result,omitempty"`
+	JSONRPC string        `json:"jsonrpc"`
+	ID      interface{}   `json:"id"`
+	Result  interface{}   `json:"result,omitempty"`
 	Error   *jsonRPCError `json:"error,omitempty"`
 }
 
@@ -31,15 +31,15 @@ type jsonRPCError struct {
 }
 
 type jsonRPCNotification struct {
-	JSONRPC string `json:"jsonrpc"`
-	Method  string `json:"method"`
+	JSONRPC string      `json:"jsonrpc"`
+	Method  string      `json:"method"`
 	Params  interface{} `json:"params,omitempty"`
 }
 
 type initParams struct {
-	ProtocolVersion string       `json:"protocolVersion"`
-	Capabilities    interface{}  `json:"capabilities"`
-	ClientInfo      clientInfo   `json:"clientInfo"`
+	ProtocolVersion string      `json:"protocolVersion"`
+	Capabilities    interface{} `json:"capabilities"`
+	ClientInfo      clientInfo  `json:"clientInfo"`
 }
 
 type clientInfo struct {
@@ -48,8 +48,8 @@ type clientInfo struct {
 }
 
 type initResult struct {
-	ProtocolVersion string           `json:"protocolVersion"`
-	ServerInfo      serverInfo       `json:"serverInfo"`
+	ProtocolVersion string             `json:"protocolVersion"`
+	ServerInfo      serverInfo         `json:"serverInfo"`
 	Capabilities    serverCapabilities `json:"capabilities"`
 }
 
@@ -102,9 +102,9 @@ type promptsListResult struct {
 }
 
 type PromptDef struct {
-	Name        string           `json:"name"`
-	Description string           `json:"description,omitempty"`
-	Arguments   []PromptArg      `json:"arguments,omitempty"`
+	Name        string      `json:"name"`
+	Description string      `json:"description,omitempty"`
+	Arguments   []PromptArg `json:"arguments,omitempty"`
 }
 
 type PromptArg struct {

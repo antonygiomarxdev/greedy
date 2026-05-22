@@ -14,18 +14,18 @@ import (
 )
 
 type Server struct {
-	exchange  exchange.Exchange
+	exchange   exchange.Exchange
 	supervisor *bot.Supervisor
-	db        *sql.DB
-	logger    *slog.Logger
+	db         *sql.DB
+	logger     *slog.Logger
 }
 
 func NewServer(ex exchange.Exchange, sup *bot.Supervisor, database *sql.DB) *Server {
 	return &Server{
-		exchange:  ex,
+		exchange:   ex,
 		supervisor: sup,
-		db:        database,
-		logger:    slog.Default().With("component", "mcp"),
+		db:         database,
+		logger:     slog.Default().With("component", "mcp"),
 	}
 }
 

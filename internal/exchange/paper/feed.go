@@ -15,23 +15,23 @@ import (
 type FeedMode int
 
 const (
-	FeedStatic      FeedMode = iota
+	FeedStatic FeedMode = iota
 	FeedRandomWalk
 	FeedCSVReplay
 )
 
 type PriceFeed struct {
-	mu       sync.RWMutex
-	mode     FeedMode
-	symbol   string
-	price    float64
-	drift    float64
-	vol      float64
-	tick     time.Duration
-	replay   []CandleRow
+	mu        sync.RWMutex
+	mode      FeedMode
+	symbol    string
+	price     float64
+	drift     float64
+	vol       float64
+	tick      time.Duration
+	replay    []CandleRow
 	replayIdx int
-	subs     map[int]chan float64
-	nextSub  int
+	subs      map[int]chan float64
+	nextSub   int
 }
 
 type CandleRow struct {

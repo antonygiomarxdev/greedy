@@ -3,8 +3,8 @@ package config
 import "time"
 
 const (
-	DefaultDBName    = "greedy.db"
-	DefaultLogLevel  = "info"
+	DefaultDBName   = "greedy.db"
+	DefaultLogLevel = "info"
 )
 
 func DefaultDCAConfig() DCAConfig {

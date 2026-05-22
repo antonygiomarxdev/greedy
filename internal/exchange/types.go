@@ -3,18 +3,21 @@ package exchange
 import "time"
 
 type OrderSide string
+
 const (
 	SideBuy  OrderSide = "buy"
 	SideSell OrderSide = "sell"
 )
 
 type OrderType string
+
 const (
 	TypeMarket OrderType = "market"
 	TypeLimit  OrderType = "limit"
 )
 
 type OrderStatus string
+
 const (
 	StatusOpen            OrderStatus = "open"
 	StatusPartiallyFilled OrderStatus = "partially_filled"
@@ -24,6 +27,7 @@ const (
 )
 
 type CandleInterval string
+
 const (
 	Interval1m  CandleInterval = "1m"
 	Interval5m  CandleInterval = "5m"
@@ -98,16 +102,16 @@ type Fill struct {
 }
 
 type Balance struct {
-	Asset    string  `json:"asset"`
-	Free     float64 `json:"free"`
-	Locked   float64 `json:"locked"`
-	Total    float64 `json:"total"`
+	Asset  string  `json:"asset"`
+	Free   float64 `json:"free"`
+	Locked float64 `json:"locked"`
+	Total  float64 `json:"total"`
 }
 
 type Position struct {
-	Symbol         string  `json:"symbol"`
-	Quantity       float64 `json:"quantity"`
-	AvgEntryPrice  float64 `json:"avg_entry_price"`
-	UnrealizedPnL  float64 `json:"unrealized_pnl"`
-	RealizedPnL    float64 `json:"realized_pnl"`
+	Symbol        string  `json:"symbol"`
+	Quantity      float64 `json:"quantity"`
+	AvgEntryPrice float64 `json:"avg_entry_price"`
+	UnrealizedPnL float64 `json:"unrealized_pnl"`
+	RealizedPnL   float64 `json:"realized_pnl"`
 }

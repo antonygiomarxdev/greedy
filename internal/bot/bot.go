@@ -25,13 +25,13 @@ const (
 )
 
 type Bot struct {
-	ID        string
-	Name      string
-	Config    config.BotConfig
-	Exchange  exchange.Exchange
-	Strategy  Strategy
-	DB        *sql.DB // for persistence
-	repo      *db.BotRepository
+	ID       string
+	Name     string
+	Config   config.BotConfig
+	Exchange exchange.Exchange
+	Strategy Strategy
+	DB       *sql.DB // for persistence
+	repo     *db.BotRepository
 
 	mu     sync.RWMutex
 	status Status

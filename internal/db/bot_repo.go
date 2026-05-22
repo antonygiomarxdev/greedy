@@ -7,14 +7,14 @@ import (
 )
 
 type BotRecord struct {
-	ID        string
-	Name      string
-	Strategy  string
-	Symbol    string
+	ID         string
+	Name       string
+	Strategy   string
+	Symbol     string
 	ConfigYAML string
-	Status    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Status     string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 type BotRepository struct {

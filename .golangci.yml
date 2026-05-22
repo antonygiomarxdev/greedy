@@ -1,0 +1,31 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - prealloc
+  disable-all: false
+
+linters-settings:
+  gosec:
+    excludes:
+      - G104  # Unhandled errors (too noisy for CLI)
+  misspell:
+    locale: US
+
+issues:
+  exclude-dirs:
+    - build
+    - vendor
+  exclude-files:
+    - ".*_test.go"
+  max-issues-per-linter: 0
+  max-same-issues: 0

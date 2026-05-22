@@ -18,15 +18,15 @@ type Signal struct {
 	Action   Action
 	Symbol   string
 	Quantity float64
-	Price    float64  // 0 = market order
+	Price    float64 // 0 = market order
 	Type     exchange.OrderType
 }
 
 type BotState struct {
-	Symbol    string
-	Position  *exchange.Position
-	Balance   *exchange.Balance
-	Ticker    *exchange.Ticker
+	Symbol     string
+	Position   *exchange.Position
+	Balance    *exchange.Balance
+	Ticker     *exchange.Ticker
 	OpenOrders []exchange.Order
 }
 

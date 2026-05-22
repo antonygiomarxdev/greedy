@@ -10,10 +10,10 @@ import (
 )
 
 type OrderBook struct {
-	mu    sync.RWMutex
-	Bids  []exchange.BookLevel
-	Asks  []exchange.BookLevel
-	Time  time.Time
+	mu   sync.RWMutex
+	Bids []exchange.BookLevel
+	Asks []exchange.BookLevel
+	Time time.Time
 }
 
 func NewOrderBook() *OrderBook {

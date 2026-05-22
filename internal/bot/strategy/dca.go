@@ -16,7 +16,7 @@ type DCA struct {
 
 	mu              sync.Mutex
 	lastBuy         time.Time
-	safetyTriggered map[int]bool   // deviation index → triggered
+	safetyTriggered map[int]bool    // deviation index → triggered
 	triggerPrices   map[int]float64 // deviation index → trigger price
 	initialPrice    float64
 }
