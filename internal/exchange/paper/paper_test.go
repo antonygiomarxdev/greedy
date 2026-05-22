@@ -129,7 +129,7 @@ func TestPaperExchange_ListOpenOrders(t *testing.T) {
 	ctx := context.Background()
 
 	ticker, _ := pe.GetTicker(ctx, "BTC-USD")
-	pe.PlaceOrder(ctx, exchange.OrderRequest{
+	_, err := pe.PlaceOrder(ctx, exchange.OrderRequest{
 		Symbol:   "BTC-USD",
 		Side:     exchange.SideBuy,
 		Type:     exchange.TypeLimit,
@@ -162,7 +162,7 @@ func TestPaperExchange_GetPosition(t *testing.T) {
 	pe.SeedLiquidity("BTC-USD", 10, 100)
 	ctx := context.Background()
 
-	pe.PlaceOrder(ctx, exchange.OrderRequest{
+	_, err := pe.PlaceOrder(ctx, exchange.OrderRequest{
 		Symbol:   "BTC-USD",
 		Side:     exchange.SideBuy,
 		Type:     exchange.TypeMarket,

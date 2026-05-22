@@ -25,7 +25,9 @@ strategy:
       - price_deviation_pct: -6
         volume_scale: 2.0
 `
-	os.WriteFile(path, []byte(yaml), 0644)
+	if err := os.WriteFile(path, []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := LoadStrategyFile(path)
 	if err != nil {
@@ -52,7 +54,7 @@ strategy:
 func TestLoadStrategyFile_Grid(t *testing.T) {
 	tmp := t.TempDir()
 	path := tmp + "/grid.yaml"
-	os.WriteFile(path, []byte(`id: test-grid
+	if err := os.WriteFile(path, []byte(`id: test-grid
 name: "Test Grid"
 strategy:
   type: grid
@@ -62,7 +64,9 @@ strategy:
     upper_bound: 4000
     grid_levels: 10
     order_size: 500
-`), 0644)
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := LoadStrategyFile(path)
 	if err != nil {
@@ -83,7 +87,7 @@ strategy:
 func TestLoadStrategyFile_Signal(t *testing.T) {
 	tmp := t.TempDir()
 	path := tmp + "/signal.yaml"
-	os.WriteFile(path, []byte(`id: test-sig
+	if err := os.WriteFile(path, []byte(`id: test-sig
 name: "Test Signal"
 strategy:
   type: signal
@@ -92,7 +96,9 @@ strategy:
     position_size: 100
     entry_condition: "ema_cross_above"
     exit_condition: "ema_cross_below"
-`), 0644)
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := LoadStrategyFile(path)
 	if err != nil {
@@ -117,7 +123,9 @@ func TestLoadStrategyFile_NotExist(t *testing.T) {
 func TestLoadStrategyFile_InvalidYAML(t *testing.T) {
 	tmp := t.TempDir()
 	path := tmp + "/bad.yaml"
-	os.WriteFile(path, []byte("{{{bad yaml"), 0644)
+	if err := os.WriteFile(path, []byte("{{{bad yaml"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := LoadStrategyFile(path)
 	if err == nil {
@@ -128,10 +136,12 @@ func TestLoadStrategyFile_InvalidYAML(t *testing.T) {
 func TestLoadStrategyFile_UnknownStrategy(t *testing.T) {
 	tmp := t.TempDir()
 	path := tmp + "/unknown.yaml"
-	os.WriteFile(path, []byte(`strategy:
+	if err := os.WriteFile(path, []byte(`strategy:
   type: unknown
   symbol: BTC-USD
-`), 0644)
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := LoadStrategyFile(path)
 	if err == nil {

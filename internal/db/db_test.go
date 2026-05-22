@@ -16,7 +16,7 @@ func TestOpenClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	Close(database)
+	_ = Close(database)
 }
 
 func TestOpen_InvalidDir(t *testing.T) {
@@ -32,7 +32,7 @@ func TestRunMigrations_EmptyDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestBotRepository_InsertGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -89,7 +89,7 @@ func TestBotRepository_InsertGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	found, _ = repo.Get("bot-1")
+	found, err = repo.Get("bot-1")
 	if found.Status != "stopped" {
 		t.Fatalf("expected stopped, got %s", found.Status)
 	}
@@ -101,7 +101,7 @@ func TestBotRepository_Get_NotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -123,7 +123,7 @@ func TestBotRepository_List(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -132,8 +132,8 @@ func TestBotRepository_List(t *testing.T) {
 	repo := NewBotRepository(database)
 	now := time.Now().UTC()
 
-	repo.Insert(BotRecord{ID: "bot-a", Name: "A", Strategy: "dca", Symbol: "BTC-USD", Status: "running", CreatedAt: now, UpdatedAt: now})
-	repo.Insert(BotRecord{ID: "bot-b", Name: "B", Strategy: "grid", Symbol: "ETH-USD", Status: "stopped", CreatedAt: now, UpdatedAt: now})
+	_ = repo.Insert(BotRecord{ID: "bot-a", Name: "A", Strategy: "dca", Symbol: "BTC-USD", Status: "running", CreatedAt: now, UpdatedAt: now})
+	_ = repo.Insert(BotRecord{ID: "bot-b", Name: "B", Strategy: "grid", Symbol: "ETH-USD", Status: "stopped", CreatedAt: now, UpdatedAt: now})
 
 	bots, err := repo.List()
 	if err != nil {
@@ -150,7 +150,7 @@ func TestBotRepository_Delete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -159,7 +159,7 @@ func TestBotRepository_Delete(t *testing.T) {
 	repo := NewBotRepository(database)
 	now := time.Now().UTC()
 
-	repo.Insert(BotRecord{ID: "del-me", Name: "D", Strategy: "signal", Symbol: "SOL-USD", Status: "paused", CreatedAt: now, UpdatedAt: now})
+	_ = repo.Insert(BotRecord{ID: "del-me", Name: "D", Strategy: "signal", Symbol: "SOL-USD", Status: "paused", CreatedAt: now, UpdatedAt: now})
 
 	if err := repo.Delete("del-me"); err != nil {
 		t.Fatal(err)
@@ -177,7 +177,7 @@ func TestConfigRepository_SetGetDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -216,7 +216,7 @@ func TestConfigRepository_Upsert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -224,10 +224,10 @@ func TestConfigRepository_Upsert(t *testing.T) {
 
 	repo := NewConfigRepository(database)
 
-	repo.Set("key", []byte("v1"))
-	repo.Set("key", []byte("v2"))
+	_ = repo.Set("key", []byte("v1"))
+	_ = repo.Set("key", []byte("v2"))
 
-	val, _ := repo.Get("key")
+	val, err := repo.Get("key")
 	if string(val) != "v2" {
 		t.Fatalf("expected v2 after upsert, got %s", string(val))
 	}
@@ -239,7 +239,7 @@ func TestSQLiteWAL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	var journalMode string
 	err = database.QueryRow("PRAGMA journal_mode").Scan(&journalMode)
@@ -257,7 +257,7 @@ func TestDB_ConcurrentAccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Close(database)
+	defer func() { _ = Close(database) }()
 
 	if err := RunMigrations(database); err != nil {
 		t.Fatal(err)
@@ -265,7 +265,7 @@ func TestDB_ConcurrentAccess(t *testing.T) {
 
 	repo := NewBotRepository(database)
 	now := time.Now().UTC()
-	repo.Insert(BotRecord{ID: "concurrent-bot", Name: "C", Strategy: "dca", Symbol: "BTC-USD", Status: "running", CreatedAt: now, UpdatedAt: now})
+	_ = repo.Insert(BotRecord{ID: "concurrent-bot", Name: "C", Strategy: "dca", Symbol: "BTC-USD", Status: "running", CreatedAt: now, UpdatedAt: now})
 
 	done := make(chan bool, 5)
 	for i := 0; i < 5; i++ {
