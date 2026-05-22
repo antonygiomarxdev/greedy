@@ -1,6 +1,9 @@
 package exchange
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 const (
 	DefaultFeeRate         = 0.001
@@ -15,3 +18,9 @@ const (
 	DefaultSymbol = "BTC-USD"
 	DefaultQuote  = "USD"
 )
+
+type MarketLifecycleManager interface {
+	AddMarket(symbol string, feed interface{})
+	SeedLiquidity(symbol string, levels int, depth float64)
+	StartFeeds(ctx context.Context)
+}

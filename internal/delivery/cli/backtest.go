@@ -40,10 +40,6 @@ func BacktestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFi
 		fmt.Fprintf(os.Stderr, "backtest error: %v\n", err)
 		os.Exit(1)
 	}
-	switch reportFmt {
-	case "json":
-		fmt.Println(report.FormatJSON())
-	default:
-		fmt.Println(report.FormatText())
-	}
+	r, _ := backtest.FormatReport(report, reportFmt)
+	fmt.Print(r)
 }

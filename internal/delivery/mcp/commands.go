@@ -252,11 +252,7 @@ func (c *addMarketCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
 
-	pex, ok := c.ex.(interface {
-		AddMarket(symbol string, feed interface{})
-		SeedLiquidity(symbol string, levels int, depth float64)
-		StartFeeds(ctx context.Context)
-	})
+	pex, ok := c.ex.(dexchange.MarketLifecycleManager)
 	if !ok {
 		return "", fmt.Errorf("exchange does not support AddMarket")
 	}

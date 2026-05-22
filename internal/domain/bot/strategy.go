@@ -35,3 +35,11 @@ type Strategy interface {
 	Evaluate(ctx context.Context, state *BotState) (*Signal, error)
 	Reset()
 }
+
+type OrderConfirmer interface {
+	ConfirmOrder(price float64, orderID string)
+}
+
+type OrderFilledListener interface {
+	OrderFilled(price float64)
+}

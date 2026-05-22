@@ -164,11 +164,11 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 			PnL:       pnl,
 		})
 
-		if confirmer, ok := e.strategy.(interface{ ConfirmOrder(float64, string) }); ok {
+		if confirmer, ok := e.strategy.(bot.OrderConfirmer); ok {
 			confirmer.ConfirmOrder(signal.Price, order.ID)
 		}
 		if order.Status == exchange.StatusFilled || order.Status == exchange.StatusPartiallyFilled {
-			if filler, ok := e.strategy.(interface{ OrderFilled(float64) }); ok {
+			if filler, ok := e.strategy.(bot.OrderFilledListener); ok {
 				filler.OrderFilled(signal.Price)
 			}
 		}

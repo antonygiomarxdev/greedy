@@ -9,6 +9,56 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
+type triggerHandler interface {
+	handle(s *Signal, state *bot.BotState) (*bot.Signal, error)
+}
+
+type entryTrigger struct{}
+
+func (t *entryTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, error) {
+	if s.inPosition {
+		return &bot.Signal{Action: bot.ActionHold}, nil
+	}
+	s.inPosition = true
+	price := state.Ticker.Price
+	if price <= 0 {
+		return &bot.Signal{Action: bot.ActionHold}, nil
+	}
+	qty := s.cfg.PositionSize / price
+	if qty <= 0 {
+		return &bot.Signal{Action: bot.ActionHold}, nil
+	}
+	return &bot.Signal{
+		Action:   bot.ActionBuy,
+		Symbol:   state.Symbol,
+		Quantity: qty,
+		Type:     exchange.TypeMarket,
+	}, nil
+}
+
+type exitTrigger struct{}
+
+func (t *exitTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, error) {
+	if !s.inPosition {
+		return &bot.Signal{Action: bot.ActionHold}, nil
+	}
+	s.inPosition = false
+	if state.Position == nil || state.Position.Quantity <= 0 {
+		return &bot.Signal{Action: bot.ActionHold}, nil
+	}
+	return &bot.Signal{
+		Action:   bot.ActionSell,
+		Symbol:   state.Symbol,
+		Quantity: state.Position.Quantity,
+		Type:     exchange.TypeMarket,
+	}, nil
+}
+
+var triggerHandlers = map[string]triggerHandler{
+	"entry": &entryTrigger{},
+	"exit":  &exitTrigger{},
+}
+
 type Signal struct {
 	cfg config.SignalConfig
 
@@ -28,8 +78,6 @@ func NewSignal(cfg config.SignalConfig) *Signal {
 
 func (s *Signal) Name() string { return "signal" }
 
-// Trigger sends an external trigger to the signal strategy.
-// Valid triggers: "entry", "exit"
 func (s *Signal) Trigger(signal string) {
 	select {
 	case s.signalCh <- signal:
@@ -43,42 +91,11 @@ func (s *Signal) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal
 
 	select {
 	case trigger := <-s.signalCh:
-		switch trigger {
-		case "entry":
-			if s.inPosition {
-				return &bot.Signal{Action: bot.ActionHold}, nil
-			}
-			s.inPosition = true
-			price := state.Ticker.Price
-			if price <= 0 {
-				return &bot.Signal{Action: bot.ActionHold}, nil
-			}
-			qty := s.cfg.PositionSize / price
-			if qty <= 0 {
-				return &bot.Signal{Action: bot.ActionHold}, nil
-			}
-			return &bot.Signal{
-				Action:   bot.ActionBuy,
-				Symbol:   state.Symbol,
-				Quantity: qty,
-				Type:     exchange.TypeMarket,
-			}, nil
-
-		case "exit":
-			if !s.inPosition {
-				return &bot.Signal{Action: bot.ActionHold}, nil
-			}
-			s.inPosition = false
-			if state.Position == nil || state.Position.Quantity <= 0 {
-				return &bot.Signal{Action: bot.ActionHold}, nil
-			}
-			return &bot.Signal{
-				Action:   bot.ActionSell,
-				Symbol:   state.Symbol,
-				Quantity: state.Position.Quantity,
-				Type:     exchange.TypeMarket,
-			}, nil
+		h, ok := triggerHandlers[trigger]
+		if !ok {
+			return &bot.Signal{Action: bot.ActionHold}, nil
 		}
+		return h.handle(s, state)
 	default:
 	}
 
@@ -90,7 +107,6 @@ func (s *Signal) Reset() {
 	defer s.mu.Unlock()
 	s.inPosition = false
 	s.entryActive = false
-	// Drain pending signals
 	for len(s.signalCh) > 0 {
 		<-s.signalCh
 	}

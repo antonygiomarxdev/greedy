@@ -7,7 +7,13 @@ import (
 	"time"
 )
 
-func (r *Report) FormatText() string {
+type ReportFormatter interface {
+	Format(r *Report) string
+}
+
+type textFormatter struct{}
+
+func (f *textFormatter) Format(r *Report) string {
 	var sb strings.Builder
 
 	sb.WriteString("╔══════════════════════════════════════════╗\n")
@@ -34,7 +40,25 @@ func (r *Report) FormatText() string {
 	return sb.String()
 }
 
-func (r *Report) FormatJSON() string {
+type jsonFormatter struct{}
+
+func (f *jsonFormatter) Format(r *Report) string {
 	data, _ := json.MarshalIndent(r, "", "  ")
 	return string(data)
 }
+
+var formatters = map[string]ReportFormatter{
+	"text": &textFormatter{},
+	"json": &jsonFormatter{},
+}
+
+func FormatReport(r *Report, format string) (string, error) {
+	f, ok := formatters[format]
+	if !ok {
+		f = formatters["text"]
+	}
+	return f.Format(r), nil
+}
+
+func (r *Report) FormatText() string { return formatters["text"].Format(r) }
+func (r *Report) FormatJSON() string { return formatters["json"].Format(r) }

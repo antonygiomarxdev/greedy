@@ -4,25 +4,15 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"math"
-	"math/rand"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 )
 
-type FeedMode int
-
-const (
-	FeedStatic FeedMode = iota
-	FeedRandomWalk
-	FeedCSVReplay
-)
-
 type PriceFeed struct {
 	mu        sync.RWMutex
-	mode      FeedMode
+	runner    feedRunner
 	symbol    string
 	price     float64
 	drift     float64
@@ -45,7 +35,7 @@ type CandleRow struct {
 
 func NewStaticFeed(symbol string, price float64) *PriceFeed {
 	return &PriceFeed{
-		mode:   FeedStatic,
+		runner: &staticRunner{},
 		symbol: symbol,
 		price:  price,
 		subs:   make(map[int]chan float64),
@@ -54,7 +44,7 @@ func NewStaticFeed(symbol string, price float64) *PriceFeed {
 
 func NewRandomWalkFeed(symbol string, startPrice, drift, vol float64, tick time.Duration) *PriceFeed {
 	return &PriceFeed{
-		mode:   FeedRandomWalk,
+		runner: &randomWalkRunner{},
 		symbol: symbol,
 		price:  startPrice,
 		drift:  drift,
@@ -80,7 +70,7 @@ func NewCSVReplayFeed(symbol, csvPath string) (*PriceFeed, error) {
 
 	rows := make([]CandleRow, 0, len(records)-1)
 	for i, rec := range records {
-		if i == 0 { // skip header
+		if i == 0 {
 			continue
 		}
 		if len(rec) < 6 {
@@ -107,7 +97,7 @@ func NewCSVReplayFeed(symbol, csvPath string) (*PriceFeed, error) {
 	}
 
 	return &PriceFeed{
-		mode:   FeedCSVReplay,
+		runner: &csvReplayRunner{},
 		symbol: symbol,
 		price:  rows[0].Close,
 		replay: rows,
@@ -146,6 +136,10 @@ func (f *PriceFeed) Unsubscribe(id int) {
 	}
 }
 
+func (f *PriceFeed) Run(ctx context.Context) {
+	f.runner.run(ctx, f)
+}
+
 func (f *PriceFeed) broadcast(p float64) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
@@ -153,66 +147,6 @@ func (f *PriceFeed) broadcast(p float64) {
 		select {
 		case ch <- p:
 		default:
-		}
-	}
-}
-
-func (f *PriceFeed) Run(ctx context.Context) {
-	switch f.mode {
-	case FeedStatic:
-		<-ctx.Done()
-	case FeedRandomWalk:
-		f.runRandomWalk(ctx)
-	case FeedCSVReplay:
-		f.runCSVReplay(ctx)
-	}
-}
-
-func (f *PriceFeed) runRandomWalk(ctx context.Context) {
-	ticker := time.NewTicker(f.tick)
-	defer ticker.Stop()
-
-	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404 — weak RNG is acceptable for paper trading sim
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			dt := f.tick.Seconds() / (365 * 24 * 3600)
-			shock := rng.NormFloat64() * f.vol * math.Sqrt(dt)
-			newPrice := f.Price() * math.Exp((f.drift-0.5*f.vol*f.vol)*dt+shock)
-			if newPrice <= 0 {
-				newPrice = 0.01
-			}
-			f.SetPrice(newPrice)
-			f.broadcast(newPrice)
-		}
-	}
-}
-
-func (f *PriceFeed) runCSVReplay(ctx context.Context) {
-	if len(f.replay) == 0 {
-		<-ctx.Done()
-		return
-	}
-
-	ticker := time.NewTicker(f.tick)
-	if f.tick == 0 {
-		f.tick = 1 * time.Second
-		ticker = time.NewTicker(f.tick)
-	}
-	defer ticker.Stop()
-
-	for f.replayIdx < len(f.replay) {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			row := f.replay[f.replayIdx]
-			f.SetPrice(row.Close)
-			f.broadcast(row.Close)
-			f.replayIdx++
 		}
 	}
 }
