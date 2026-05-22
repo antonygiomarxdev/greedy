@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
+	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/config"
 	"github.com/antonygiomarxdev/greedy/internal/exchange"
 )
@@ -274,7 +275,33 @@ func (s *Server) handleStartBot(ctx context.Context, args map[string]interface{}
 		if v, ok := config.ParseDurationParam(cfg.Strategy.Params, "frequency"); ok {
 			dcaCfg.Frequency = v
 		}
-		strat = newDCAStrategy(dcaCfg)
+		if v, ok := config.ParseIntParam(cfg.Strategy.Params, "max_safety_orders"); ok {
+			dcaCfg.MaxSafetyOrders = int(v)
+		}
+		strat = strategy.NewDCA(dcaCfg)
+	case "grid":
+		gridCfg := config.DefaultGridConfig()
+		gridCfg.Symbol = cfg.Strategy.Symbol
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "lower_bound"); ok {
+			gridCfg.LowerBound = v
+		}
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "upper_bound"); ok {
+			gridCfg.UpperBound = v
+		}
+		if v, ok := config.ParseIntParam(cfg.Strategy.Params, "grid_levels"); ok {
+			gridCfg.GridLevels = int(v)
+		}
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "order_size"); ok {
+			gridCfg.OrderSize = v
+		}
+		strat = strategy.NewGRID(gridCfg)
+	case "signal":
+		sigCfg := config.DefaultSignalConfig()
+		sigCfg.Symbol = cfg.Strategy.Symbol
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "position_size"); ok {
+			sigCfg.PositionSize = v
+		}
+		strat = strategy.NewSignal(sigCfg)
 	default:
 		return "", fmt.Errorf("unknown strategy: %s", cfg.Strategy.Type)
 	}
@@ -288,7 +315,7 @@ func (s *Server) handleStartBot(ctx context.Context, args map[string]interface{}
 		return "", fmt.Errorf("start bot: %w", err)
 	}
 
-	return fmt.Sprintf(`{"started": true, "bot_id": "%s", "strategy": "%s"}`, botID, cfg.Strategy.Type), nil
+	return fmt.Sprintf(`{"started": true, "bot_id": "%s", "strategy": "%s", "symbol": "%s"}`, botID, cfg.Strategy.Type, cfg.Strategy.Symbol), nil
 }
 
 func (s *Server) handleStopBot(ctx context.Context, args map[string]interface{}) (string, error) {

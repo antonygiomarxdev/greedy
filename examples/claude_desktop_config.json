@@ -1,10 +1,10 @@
 {
   "mcpServers": {
     "greedy": {
-      "command": "/usr/local/bin/greedy",
+      "command": "greedy",
       "args": ["mcp-serve"],
       "env": {
-        "GREEDY_HOME": "/home/user/.greedy"
+        "GREEDY_HOME": "/home/you/.greedy"
       }
     }
   }

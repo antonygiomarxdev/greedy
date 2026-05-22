@@ -6,3 +6,5 @@ strategy:
   symbol: BTC-USD
   params:
     position_size: 1000
+    entry_condition: "ema_cross_above"
+    exit_condition: "ema_cross_below"
