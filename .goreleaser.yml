@@ -1,0 +1,69 @@
+# GoReleaser — multi-platform static binary releases
+# Trigger: git tag v*
+#
+# Usage:
+#   git tag v0.2.0
+#   git push origin v0.2.0
+#
+# The release workflow builds for linux/darwin/windows (amd64 + arm64),
+# creates GitHub release, checksums, and generates a Homebrew formula.
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: greedy
+    main: ./cmd/greedy
+    binary: greedy
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/antonygiomarxdev/greedy/internal/version.Version={{ .Version }}
+      - -X github.com/antonygiomarxdev/greedy/internal/version.Commit={{ .Commit }}
+      - -X github.com/antonygiomarxdev/greedy/internal/version.Date={{ .Date }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}amd64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+      - examples/*.yaml
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+  footer: |
+    **Full Changelog**: https://github.com/antonygiomarxdev/greedy/compare/{{ .PreviousTag }}...{{ .Tag }}

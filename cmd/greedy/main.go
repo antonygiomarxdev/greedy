@@ -17,6 +17,7 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/db"
 	"github.com/antonygiomarxdev/greedy/internal/exchange/paper"
 	"github.com/antonygiomarxdev/greedy/internal/mcp"
+	"github.com/antonygiomarxdev/greedy/internal/version"
 )
 
 func main() {
@@ -66,7 +67,7 @@ Usage:
 	case "mcp-serve":
 		mcpServeCommand(ctx, logger)
 	case "version":
-		fmt.Println("greedy version 0.1.0")
+		fmt.Printf("greedy version %s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		flag.Usage()

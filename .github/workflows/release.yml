@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  goreleaser:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Semantic Versioning check
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          if ! echo "$TAG" | grep -qE '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$'; then
+            echo "ERROR: Tag '$TAG' must be a valid semver (vMAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+          echo "VERSION=$TAG" >> "$GITHUB_ENV"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Homebrew formula
+        run: |
+          mkdir -p dist/homebrew
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          cat > dist/homebrew/greedy.rb << 'FORMULA'
+          class Greedy < Formula
+            desc "Sovereign algorithmic trading engine with MCP AI control"
+            homepage "https://github.com/antonygiomarxdev/greedy"
+            version "$VERSION"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/antonygiomarxdev/greedy/releases/download/$TAG/greedy_${VERSION}_darwin_arm64.tar.gz"
+                sha256 "$DARWIN_ARM64_SHA256"
+              else
+                url "https://github.com/antonygiomarxdev/greedy/releases/download/$TAG/greedy_${VERSION}_darwin_amd64.tar.gz"
+                sha256 "$DARWIN_AMD64_SHA256"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/antonygiomarxdev/greedy/releases/download/$TAG/greedy_${VERSION}_linux_arm64.tar.gz"
+                sha256 "$LINUX_ARM64_SHA256"
+              else
+                url "https://github.com/antonygiomarxdev/greedy/releases/download/$TAG/greedy_${VERSION}_linux_amd64.tar.gz"
+                sha256 "$LINUX_AMD64_SHA256"
+              end
+            end
+
+            def install
+              bin.install "greedy"
+            end
+
+            test do
+              assert_match "greedy version", shell_output("#{bin}/greedy version")
+            end
+          end
+          FORMULA
+          envsubst < dist/homebrew/greedy.rb

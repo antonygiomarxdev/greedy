@@ -58,6 +58,7 @@ func (s *Supervisor) StartBot(ctx context.Context, id string, cfg config.BotConf
 	}
 
 	botCtx, cancel := context.WithCancel(ctx)
+	// cancel is stored in s.cancels and called in StopBot/Shutdown
 
 	bot := New(id, cfg.Name, cfg, s.exchange, strat, s.db)
 	s.bots[id] = bot

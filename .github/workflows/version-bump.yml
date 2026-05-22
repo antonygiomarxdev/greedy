@@ -1,0 +1,119 @@
+name: Version Bump
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    name: Auto-bump version
+    if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag
+        id: latest-tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Latest tag: $TAG"
+
+      - name: Determine bump type from conventional commits
+        id: bump
+        run: |
+          LATEST_TAG="${{ steps.latest-tag.outputs.tag }}"
+
+          # Get commits since last tag
+          COMMITS=$(git log "${LATEST_TAG}..HEAD" --pretty=format:"%s" || echo "")
+
+          # Parse conventional commits for bump type
+          BUMP="patch"
+          if echo "$COMMITS" | grep -q "^BREAKING CHANGE"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qE "^(feat|feature)"; then
+            BUMP="minor"
+          fi
+
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+          echo "Bump type: $BUMP (based on commits since $LATEST_TAG)"
+
+      - name: Compute next version
+        id: next-version
+        run: |
+          CURRENT="${{ steps.latest-tag.outputs.tag }}"
+          BUMP="${{ steps.bump.outputs.bump }}"
+
+          # Strip 'v' prefix
+          VERSION="${CURRENT#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          case "$BUMP" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Next version: $NEXT"
+
+      - name: Update version in code
+        run: |
+          NEXT="${{ steps.next-version.outputs.next }}"
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          COMMIT=$(git rev-parse --short HEAD)
+
+          cat > internal/version/version.go << 'GOVER'
+          // Package version provides build-time version information injected via ldflags.
+          package version
+
+          var (
+          	Version = "dev"
+          	Commit  = "unknown"
+          	Date    = "unknown"
+          )
+          GOVER
+
+          # Replace go:generate placeholder
+          sed -i "s/Version = \"dev\"/Version = \"${NEXT#v}\"/" internal/version/version.go
+          sed -i "s/Version = \"unknown\"/Version = \"${NEXT#v}\"/" internal/version/version.go
+
+          echo "Version file updated to $NEXT"
+
+      - name: Create version bump commit and tag
+        run: |
+          NEXT="${{ steps.next-version.outputs.next }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit version file
+          git add internal/version/version.go
+          git commit -m "chore: bump version to $NEXT" || echo "No changes to commit"
+
+          # Create tag
+          git tag -a "$NEXT" -m "Release $NEXT"
+
+          # Push commit and tag
+          git push origin main
+          git push origin "$NEXT"
+
+          echo "Released $NEXT"
