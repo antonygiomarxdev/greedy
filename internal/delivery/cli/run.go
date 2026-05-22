@@ -1,0 +1,58 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"time"
+
+	"github.com/antonygiomarxdev/greedy/internal/bot"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/usecases"
+)
+
+func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
+	if path == "" {
+		fmt.Fprintln(os.Stderr, "error: --strategy flag is required for run command")
+		os.Exit(1)
+	}
+	cfg, err := config.LoadStrategyFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error loading strategy: %v\n", err)
+		os.Exit(1)
+	}
+	database, err := db.Open(cfg.DataDir())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close(database)
+	if err := db.RunMigrations(database); err != nil {
+		fmt.Fprintf(os.Stderr, "error running migrations: %v\n", err)
+		os.Exit(1)
+	}
+	exchange := paper.New(0.001)
+	exchange.AddMarket(cfg.Strategy.Symbol, paper.NewRandomWalkFeed(cfg.Strategy.Symbol, 50000, 0.1, 0.3, 100*time.Millisecond))
+	exchange.SeedLiquidity(cfg.Strategy.Symbol, 10, 100)
+	exchange.StartFeeds(ctx)
+
+	strat := usecases.BuildStrategy(cfg)
+	botID := cfg.ID
+	if botID == "" {
+		botID = fmt.Sprintf("bot-%d", time.Now().Unix())
+	}
+	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
+	if err := supervisor.StartBot(ctx, botID, *cfg, strat); err != nil {
+		fmt.Fprintf(os.Stderr, "error starting bot: %v\n", err)
+		os.Exit(1)
+	}
+	logger.Info("bot running", "id", botID, "strategy", cfg.Strategy.Type, "symbol", cfg.Strategy.Symbol)
+	logger.Info("press Ctrl+C to stop")
+	<-ctx.Done()
+	logger.Info("shutting down...")
+	supervisor.Shutdown()
+	logger.Info("shutdown complete")
+}
