@@ -20,10 +20,7 @@ func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
 		fmt.Fprintln(os.Stderr, "error: --strategy flag is required for run command")
 		os.Exit(1)
 	}
-	stratReg := strategy.NewRegistry()
-	strategy.RegisterAll(stratReg)
-
-	cfg, err := config.LoadStrategyFile(path, stratReg)
+	cfg, err := config.LoadStrategyFile(path, strategy.Validator())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error loading strategy: %v\n", err)
 		os.Exit(1)
@@ -43,7 +40,7 @@ func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
 	exchange.SeedLiquidity(cfg.Strategy.Symbol, dexchange.DefaultLiquidityLevels, dexchange.DefaultLiquidityDepth)
 	exchange.StartFeeds(ctx)
 
-	strat, err := stratReg.Build(cfg.Strategy.Type, cfg.Strategy.Symbol, cfg.Strategy.Params)
+	strat, err := strategy.Build(cfg.Strategy.Type, cfg.Strategy.Symbol, cfg.Strategy.Params)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error building strategy: %v\n", err)
 		os.Exit(1)

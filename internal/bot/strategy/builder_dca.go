@@ -5,6 +5,10 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
+func init() {
+	Register(&DCABuilder{})
+}
+
 type DCABuilder struct{}
 
 func (b *DCABuilder) StrategyType() string { return "dca" }

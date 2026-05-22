@@ -43,3 +43,15 @@ type OrderConfirmer interface {
 type OrderFilledListener interface {
 	OrderFilled(price float64)
 }
+
+func NotifyOrderConfirmer(strat Strategy, price float64, orderID string) {
+	if c, ok := strat.(OrderConfirmer); ok {
+		c.ConfirmOrder(price, orderID)
+	}
+}
+
+func NotifyOrderFilled(strat Strategy, price float64) {
+	if f, ok := strat.(OrderFilledListener); ok {
+		f.OrderFilled(price)
+	}
+}

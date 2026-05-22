@@ -13,6 +13,40 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/version"
 )
 
+type commandHandler func(ctx context.Context, logger *slog.Logger, args []string)
+
+var commands = map[string]commandHandler{
+	"run": func(ctx context.Context, logger *slog.Logger, args []string) {
+		fset := flag.NewFlagSet("run", flag.ExitOnError)
+		stratFile := fset.String("strategy", "", "strategy YAML file to run")
+		if err := fset.Parse(args); err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing run flags: %v\n", err)
+			os.Exit(1)
+		}
+		cli.RunCommand(ctx, logger, *stratFile)
+	},
+	"backtest": func(ctx context.Context, logger *slog.Logger, args []string) {
+		fset := flag.NewFlagSet("backtest", flag.ExitOnError)
+		stratFile := fset.String("strategy", "", "strategy YAML file")
+		dataFile := fset.String("data", "", "CSV data file (timestamp,open,high,low,close,volume)")
+		reportFmt := fset.String("report", "text", "report format: text, json")
+		if err := fset.Parse(args); err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing backtest flags: %v\n", err)
+			os.Exit(1)
+		}
+		cli.BacktestCommand(ctx, logger, *stratFile, *dataFile, *reportFmt)
+	},
+	"status": func(ctx context.Context, logger *slog.Logger, args []string) {
+		cli.StatusCommand(ctx, logger)
+	},
+	"mcp-serve": func(ctx context.Context, logger *slog.Logger, args []string) {
+		cli.MCPServeCommand(ctx, logger)
+	},
+	"version": func(ctx context.Context, logger *slog.Logger, args []string) {
+		fmt.Printf("greedy version %s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)
+	},
+}
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Greedy - Sovereign Algorithmic Trading Engine
@@ -41,35 +75,12 @@ Usage:
 	defer cancel()
 
 	cmd := args[0]
-
-	switch cmd {
-	case "run":
-		runCmd := flag.NewFlagSet("run", flag.ExitOnError)
-		stratFile := runCmd.String("strategy", "", "strategy YAML file to run")
-		if err := runCmd.Parse(args[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing run flags: %v\n", err)
-			os.Exit(1)
-		}
-		cli.RunCommand(ctx, logger, *stratFile)
-	case "backtest":
-		backtestCmd := flag.NewFlagSet("backtest", flag.ExitOnError)
-		stratFile := backtestCmd.String("strategy", "", "strategy YAML file")
-		dataFile := backtestCmd.String("data", "", "CSV data file (timestamp,open,high,low,close,volume)")
-		reportFmt := backtestCmd.String("report", "text", "report format: text, json")
-		if err := backtestCmd.Parse(args[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "error parsing backtest flags: %v\n", err)
-			os.Exit(1)
-		}
-		cli.BacktestCommand(ctx, logger, *stratFile, *dataFile, *reportFmt)
-	case "status":
-		cli.StatusCommand(ctx, logger)
-	case "mcp-serve":
-		cli.MCPServeCommand(ctx, logger)
-	case "version":
-		fmt.Printf("greedy version %s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)
-	default:
+	handler, ok := commands[cmd]
+	if !ok {
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	handler(ctx, logger, args[1:])
 }

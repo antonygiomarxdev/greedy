@@ -5,6 +5,10 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
+func init() {
+	Register(&SignalBuilder{})
+}
+
 type SignalBuilder struct{}
 
 func (b *SignalBuilder) StrategyType() string { return "signal" }

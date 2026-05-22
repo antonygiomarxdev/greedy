@@ -9,7 +9,6 @@ import (
 	"sort"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
 )
@@ -29,7 +28,7 @@ type ToolDef struct {
 	InputSchema map[string]any `json:"inputSchema"`
 }
 
-func NewServer(ex dexchange.Exchange, sup *bot.Supervisor, database *sql.DB, stratReg *strategy.Registry) *Server {
+func NewServer(ex dexchange.Exchange, sup *bot.Supervisor, database *sql.DB) *Server {
 	s := &Server{
 		exchange:    ex,
 		supervisor:  sup,
@@ -39,25 +38,13 @@ func NewServer(ex dexchange.Exchange, sup *bot.Supervisor, database *sql.DB, str
 		rpcHandlers: make(map[string]rpcHandlerFunc),
 	}
 
-	s.registerCommands(stratReg)
+	for _, factory := range commandFactories {
+		cmd := factory(ex, sup)
+		s.commands[cmd.Name()] = cmd
+	}
 	s.registerRPCHandlers()
 
 	return s
-}
-
-func (s *Server) registerCommands(stratReg *strategy.Registry) {
-	s.RegisterCommand(&getTickerCommand{ex: s.exchange})
-	s.RegisterCommand(&getOrderBookCommand{ex: s.exchange})
-	s.RegisterCommand(&getCandlesCommand{ex: s.exchange})
-	s.RegisterCommand(&placeOrderCommand{ex: s.exchange})
-	s.RegisterCommand(&cancelOrderCommand{ex: s.exchange})
-	s.RegisterCommand(&getPositionsCommand{ex: s.exchange})
-	s.RegisterCommand(&getBalancesCommand{ex: s.exchange})
-	s.RegisterCommand(&startBotCommand{sup: s.supervisor, strategyRegistry: stratReg})
-	s.RegisterCommand(&stopBotCommand{sup: s.supervisor})
-	s.RegisterCommand(&listBotsCommand{sup: s.supervisor})
-	s.RegisterCommand(&addMarketCommand{ex: s.exchange})
-	s.RegisterCommand(&getBotStatusCommand{sup: s.supervisor})
 }
 
 func (s *Server) RegisterCommand(cmd tool.Command) {
@@ -91,4 +78,20 @@ func jsonString(v any) (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+func (s *Server) ListResources() []ResourceDef {
+	var out []ResourceDef
+	for _, p := range resourceProviders {
+		out = append(out, p.Resources()...)
+	}
+	return out
+}
+
+func (s *Server) ListPrompts() []PromptDef {
+	var out []PromptDef
+	for _, p := range promptProviders {
+		out = append(out, p.Prompts()...)
+	}
+	return out
 }

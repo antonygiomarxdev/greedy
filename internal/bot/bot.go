@@ -222,15 +222,11 @@ func (b *Bot) tick(ctx context.Context) error {
 	)
 
 	// Notify strategy of order confirmation (GRID needs this)
-	if confirmer, ok := b.Strategy.(OrderConfirmer); ok {
-		confirmer.ConfirmOrder(signal.Price, order.ID)
-	}
+	NotifyOrderConfirmer(b.Strategy, signal.Price, order.ID)
 
 	// If filled immediately, notify strategy
 	if order.Status == exchange.StatusFilled || order.Status == exchange.StatusPartiallyFilled {
-		if filler, ok := b.Strategy.(OrderFilledListener); ok {
-			filler.OrderFilled(signal.Price)
-		}
+		NotifyOrderFilled(b.Strategy, signal.Price)
 	}
 
 	return nil

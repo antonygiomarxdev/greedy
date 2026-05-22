@@ -55,7 +55,7 @@ var formatters = map[string]ReportFormatter{
 func FormatReport(r *Report, format string) (string, error) {
 	f, ok := formatters[format]
 	if !ok {
-		f = formatters["text"]
+		return "", fmt.Errorf("unknown report format: %s", format)
 	}
 	return f.Format(r), nil
 }

@@ -16,10 +16,7 @@ func BacktestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFi
 		fmt.Fprintln(os.Stderr, "error: --strategy and --data are required")
 		os.Exit(1)
 	}
-	stratReg := strategy.NewRegistry()
-	strategy.RegisterAll(stratReg)
-
-	cfg, err := config.LoadStrategyFile(stratFile, stratReg)
+	cfg, err := config.LoadStrategyFile(stratFile, strategy.Validator())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error loading strategy: %v\n", err)
 		os.Exit(1)
@@ -29,7 +26,7 @@ func BacktestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFi
 		fmt.Fprintf(os.Stderr, "error loading data: %v\n", err)
 		os.Exit(1)
 	}
-	strat, err := stratReg.Build(cfg.Strategy.Type, cfg.Strategy.Symbol, cfg.Strategy.Params)
+	strat, err := strategy.Build(cfg.Strategy.Type, cfg.Strategy.Symbol, cfg.Strategy.Params)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error building strategy: %v\n", err)
 		os.Exit(1)
@@ -40,6 +37,10 @@ func BacktestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFi
 		fmt.Fprintf(os.Stderr, "backtest error: %v\n", err)
 		os.Exit(1)
 	}
-	r, _ := backtest.FormatReport(report, reportFmt)
+	r, err := backtest.FormatReport(report, reportFmt)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error formatting report: %v\n", err)
+		os.Exit(1)
+	}
 	fmt.Print(r)
 }

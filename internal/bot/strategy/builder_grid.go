@@ -5,6 +5,10 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
+func init() {
+	Register(&GridBuilder{})
+}
+
 type GridBuilder struct{}
 
 func (b *GridBuilder) StrategyType() string { return "grid" }

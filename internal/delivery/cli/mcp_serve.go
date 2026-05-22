@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/delivery/mcp"
 	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
@@ -35,9 +34,7 @@ func MCPServeCommand(ctx context.Context, logger *slog.Logger) {
 	exchange.SeedLiquidity(dexchange.DefaultSymbol, dexchange.DefaultLiquidityLevels, dexchange.DefaultLiquidityDepth)
 	exchange.StartFeeds(ctx)
 	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
-	stratReg := strategy.NewRegistry()
-	strategy.RegisterAll(stratReg)
-	server := mcp.NewServer(exchange, supervisor, database, stratReg)
+	server := mcp.NewServer(exchange, supervisor, database)
 	logger.Info("mcp server starting on stdio")
 	if err := server.ServeStdio(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "mcp server error: %v\n", err)

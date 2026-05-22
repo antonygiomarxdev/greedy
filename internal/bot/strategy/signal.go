@@ -54,9 +54,14 @@ func (t *exitTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, error
 	}, nil
 }
 
+const (
+	TriggerEntry = "entry"
+	TriggerExit  = "exit"
+)
+
 var triggerHandlers = map[string]triggerHandler{
-	"entry": &entryTrigger{},
-	"exit":  &exitTrigger{},
+	TriggerEntry: &entryTrigger{},
+	TriggerExit:  &exitTrigger{},
 }
 
 type Signal struct {

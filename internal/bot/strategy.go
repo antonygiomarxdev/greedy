@@ -11,6 +11,9 @@ type Strategy = domain.Strategy
 type OrderConfirmer = domain.OrderConfirmer
 type OrderFilledListener = domain.OrderFilledListener
 
+var NotifyOrderConfirmer = domain.NotifyOrderConfirmer
+var NotifyOrderFilled = domain.NotifyOrderFilled
+
 const ActionBuy = domain.ActionBuy
 const ActionSell = domain.ActionSell
 const ActionHold = domain.ActionHold

@@ -39,3 +39,21 @@ func (r *Registry) Validate(strategyType string, params map[string]interface{}) 
 	}
 	return b.Validate(params)
 }
+
+var defaultRegistry = NewRegistry()
+
+func Register(b StrategyBuilder) {
+	defaultRegistry.Register(b)
+}
+
+func Build(strategyType, symbol string, params map[string]interface{}) (domain.Strategy, error) {
+	return defaultRegistry.Build(strategyType, symbol, params)
+}
+
+func Validate(strategyType string, params map[string]interface{}) error {
+	return defaultRegistry.Validate(strategyType, params)
+}
+
+func Validator() *Registry {
+	return defaultRegistry
+}

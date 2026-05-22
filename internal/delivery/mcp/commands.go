@@ -14,6 +14,45 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 )
 
+func init() {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &getTickerCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &getOrderBookCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &getCandlesCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &placeOrderCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &cancelOrderCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &getPositionsCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &getBalancesCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &startBotCommand{sup: sup}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &stopBotCommand{sup: sup}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &listBotsCommand{sup: sup}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &addMarketCommand{ex: ex}
+	})
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+		return &getBotStatusCommand{sup: sup}
+	})
+}
+
 type getTickerCommand struct{ ex dexchange.Exchange }
 
 func (c *getTickerCommand) Name() string        { return tool.NameGetTicker }
@@ -163,8 +202,7 @@ func (c *getBalancesCommand) Execute(ctx context.Context, _ json.RawMessage) (st
 }
 
 type startBotCommand struct {
-	sup              *bot.Supervisor
-	strategyRegistry *strategy.Registry
+	sup *bot.Supervisor
 }
 
 func (c *startBotCommand) Name() string { return tool.NameStartBot }
@@ -181,12 +219,12 @@ func (c *startBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) 
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
 
-	cfg, err := config.LoadStrategyFile(p.StrategyFile, c.strategyRegistry)
+	cfg, err := config.LoadStrategyFile(p.StrategyFile, nil)
 	if err != nil {
 		return "", fmt.Errorf("load strategy: %w", err)
 	}
 
-	strat, err := c.strategyRegistry.Build(cfg.Strategy.Type, cfg.Strategy.Symbol, cfg.Strategy.Params)
+	strat, err := strategy.Build(cfg.Strategy.Type, cfg.Strategy.Symbol, cfg.Strategy.Params)
 	if err != nil {
 		return "", fmt.Errorf("build strategy: %w", err)
 	}

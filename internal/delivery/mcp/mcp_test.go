@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 )
 
@@ -18,9 +17,7 @@ func setupServer(t *testing.T) (*Server, context.Context) {
 	ex.SeedLiquidity("BTC-USD", 10, 100)
 
 	sup := bot.NewSupervisor(ex, nil, bot.RestartNever)
-	reg := strategy.NewRegistry()
-	strategy.RegisterAll(reg)
-	srv := NewServer(ex, sup, nil, reg)
+	srv := NewServer(ex, sup, nil)
 	ctx := context.Background()
 
 	return srv, ctx
