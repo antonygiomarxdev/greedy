@@ -1,0 +1,22 @@
+# Binaries
+/greedy
+/build/
+
+# Go
+*.exe
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Greedy data
+*.db
+*.db-wal
+*.db-shm

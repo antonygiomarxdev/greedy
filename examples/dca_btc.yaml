@@ -1,0 +1,15 @@
+id: dca-btc-01
+name: "BTC DCA Bot"
+exchange: paper
+strategy:
+  type: dca
+  symbol: BTC-USD
+  params:
+    base_order_size: 100
+    frequency: "5s"
+    max_safety_orders: 5
+    safety_orders:
+      - price_deviation_pct: -5
+        volume_scale: 1.5
+      - price_deviation_pct: -10
+        volume_scale: 2.0
