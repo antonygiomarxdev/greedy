@@ -16,11 +16,45 @@ Sovereign, local-first algorithmic trading engine. Single static binary. CLI-nat
 # Build
 make build
 
-# Run a DCA strategy
+# Run a DCA strategy (paper trading)
 ./build/greedy run --strategy examples/dca_btc.yaml
 
 # Press Ctrl+C to gracefully stop (cancels all open orders)
 ```
+
+## AI-Native Trading (MCP)
+
+Greedy ships with a built-in MCP server. Connect it to Claude Desktop for natural language trading control.
+
+### Claude Desktop Setup
+
+1. Build the binary: `make build`
+2. Copy the config: `cp examples/claude_desktop_config.json ~/.config/Claude/claude_desktop_config.json`
+3. Adjust the binary path and `GREEDY_HOME` in the config
+4. Restart Claude Desktop
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_ticker` | Current price for a symbol |
+| `get_order_book` | Bid/ask order book |
+| `get_candles` | Historical OHLCV candles |
+| `place_order` | Place market/limit orders |
+| `cancel_order` | Cancel an open order |
+| `get_positions` | Current positions with P&L |
+| `get_balances` | Account balances |
+| `start_bot` | Launch a strategy from YAML |
+| `stop_bot` | Stop a running bot |
+| `list_bots` | All active bots with status |
+
+### Example Prompts for Claude
+
+- "What's the BTC-USD price right now?"
+- "Start a DCA bot for ETH-USD buying $50 every hour"
+- "Show me all my positions and unrealized P&L"
+- "Stop the BTC DCA bot"
+- "Place a limit buy order for 0.01 BTC at $48,000"
 
 ## Strategy Configuration
 
@@ -47,27 +81,29 @@ strategy:
 
 ```
 greedy/
-├── cmd/greedy/          # Single binary entry point
+├── cmd/greedy/              # Single binary entry point
 ├── internal/
-│   ├── config/          # YAML strategy loading + validation
-│   ├── crypto/          # NaCl secretbox + Argon2id encryption
-│   ├── db/              # SQLite with WAL mode, migrations, repositories
-│   ├── exchange/        # Exchange interface + canonical types
-│   │   └── paper/       # Paper trading engine with matching
-│   ├── bot/             # Strategy interface, state machine, supervisor
-│   │   └── strategy/    # DCA, GRID, Signal strategies
-│   └── mcp/             # MCP server for AI integration (Phase 2)
-├── examples/            # Strategy YAML examples
+│   ├── config/              # YAML strategy loading + validation
+│   ├── crypto/              # NaCl secretbox + Argon2id encryption
+│   ├── db/                  # SQLite with WAL mode, migrations, repositories
+│   ├── exchange/            # Exchange interface + canonical types
+│   │   └── paper/           # Paper trading engine with matching engine
+│   ├── bot/                 # Strategy interface, state machine, supervisor
+│   │   └── strategy/        # DCA, GRID, Signal strategies
+│   └── mcp/                 # MCP server (JSON-RPC 2.0 stdio transport)
+├── examples/                # Strategy YAML + Claude Desktop config
 └── Makefile
 ```
 
 ## Roadmap
 
+Track progress on [GitHub Issues](https://github.com/antonygiomarxdev/greedy/issues).
+
 - [x] **Phase 1**: Core engine, paper trading, DCA strategy, SQLite, CLI
-- [ ] **Phase 2**: MCP server (AI-native control via Claude Desktop)
+- [x] **Phase 2**: MCP server with 10 AI tools (AI-native control)
 - [ ] **Phase 3**: GRID + Signal strategies
 - [ ] **Phase 4**: Backtesting engine
-- [ ] **Phase 5**: Web UI (embedded Svelte)
+- [ ] **Phase 5**: Web UI (embedded Svelte dashboard)
 - [ ] **Phase 6**: Real exchange connectors (Coinbase, Binance)
 
 ## Requirements
