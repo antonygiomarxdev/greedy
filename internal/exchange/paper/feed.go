@@ -172,7 +172,7 @@ func (f *PriceFeed) runRandomWalk(ctx context.Context) {
 	ticker := time.NewTicker(f.tick)
 	defer ticker.Stop()
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec // G404: weak RNG is acceptable for simulated prices
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404 — weak RNG is acceptable for paper trading sim
 
 	for {
 		select {
