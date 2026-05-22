@@ -4,17 +4,19 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/pricestore"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
+var _ PriceStreamer = (*Streamer)(nil)
+
 type symbolState struct {
 	refCount int
 	cancel   context.CancelFunc
-	cache    CachedTicker
-	mu       sync.RWMutex
+	cache    atomic.Value
 }
 
 type Streamer struct {
@@ -94,9 +96,11 @@ func (s *Streamer) GetCached(symbol string) (CachedTicker, bool) {
 		return CachedTicker{}, false
 	}
 
-	state.mu.RLock()
-	defer state.mu.RUnlock()
-	return state.cache, true
+	v := state.cache.Load()
+	if v == nil {
+		return CachedTicker{}, true
+	}
+	return v.(CachedTicker), true
 }
 
 func (s *Streamer) ActiveSymbols() []string {
@@ -114,30 +118,22 @@ func (s *Streamer) fetchLoop(ctx context.Context, symbol string, interval time.D
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	markStale := func() {
-		state.mu.Lock()
-		state.cache.Stale = true
-		state.mu.Unlock()
-	}
-
 	fetch := func() {
 		t, err := s.exchange.GetTicker(ctx, symbol)
 		if err != nil {
 			s.logger.Warn("streamer fetch failed", "symbol", symbol, "error", err)
-			markStale()
+			state.cache.Store(CachedTicker{Stale: true})
 			return
 		}
 
-		state.mu.Lock()
-		state.cache = CachedTicker{
+		cached := CachedTicker{
 			Symbol:    symbol,
 			Price:     t.Price,
 			Bid:       t.Price * 0.999,
 			Ask:       t.Price * 1.001,
 			Timestamp: t.Time,
-			Stale:     false,
 		}
-		state.mu.Unlock()
+		state.cache.Store(cached)
 
 		if s.priceStore != nil {
 			if err := s.priceStore.Insert(ctx, pricestore.PricePoint{
@@ -159,7 +155,7 @@ func (s *Streamer) fetchLoop(ctx context.Context, symbol string, interval time.D
 	for {
 		select {
 		case <-ctx.Done():
-			markStale()
+			state.cache.Store(CachedTicker{Stale: true})
 			return
 		case <-ticker.C:
 			fetch()
