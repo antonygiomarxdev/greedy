@@ -51,6 +51,10 @@ func (s *Supervisor) SetIdempotency(store idempotency.Store) {
 	s.idempotency = store
 }
 
+func (s *Supervisor) Streamer() pricestreamer.PriceStreamer {
+	return s.streamer
+}
+
 func NewSupervisor(ex shared.Exchange, database *sql.DB, policy RestartPolicy) *Supervisor {
 	return &Supervisor{
 		bots:     make(map[string]*Bot),

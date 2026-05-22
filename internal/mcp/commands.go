@@ -45,7 +45,7 @@ func init() {
 		return &listBotsCommand{sup: sup}
 	})
 	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &addMarketCommand{ex: ex}
+		return &addMarketCommand{ex: ex, sup: sup}
 	})
 	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &getBotStatusCommand{sup: sup}
@@ -273,7 +273,10 @@ func (c *listBotsCommand) Execute(_ context.Context, _ json.RawMessage) (string,
 	return jsonString(c.sup.ListBots())
 }
 
-type addMarketCommand struct{ ex shared.Exchange }
+type addMarketCommand struct {
+	ex  shared.Exchange
+	sup *trading.Supervisor
+}
 
 func (c *addMarketCommand) Name() string { return NameAddMarket }
 func (c *addMarketCommand) Description() string {
@@ -313,6 +316,12 @@ func (c *addMarketCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 	pex.AddMarket(p.Symbol, paper.NewRandomWalkFeed(p.Symbol, p.InitialPrice, p.Drift, p.Volatility, shared.DefaultTickInterval))
 	pex.SeedLiquidity(p.Symbol, p.LiquidityLevels, p.LiquidityDepth)
 	pex.StartFeeds(ctx)
+
+	if streamer := c.sup.Streamer(); streamer != nil {
+		if err := streamer.Register(ctx, p.Symbol, shared.DefaultTickInterval); err != nil {
+			return "", fmt.Errorf("register symbol in streamer: %w", err)
+		}
+	}
 
 	return fmt.Sprintf(`{"added": true, "symbol": "%s", "price": %.2f}`, p.Symbol, p.InitialPrice), nil
 }
