@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/config"
 	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/usecases"
 )
 
 type Server struct {
@@ -263,48 +263,8 @@ func (s *Server) handleStartBot(ctx context.Context, args map[string]interface{}
 		return "", fmt.Errorf("load strategy: %w", err)
 	}
 
-	// Build strategy
-	var strat bot.Strategy
-	switch cfg.Strategy.Type {
-	case "dca":
-		dcaCfg := config.DefaultDCAConfig()
-		dcaCfg.Symbol = cfg.Strategy.Symbol
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "base_order_size"); ok {
-			dcaCfg.BaseOrderSize = v
-		}
-		if v, ok := config.ParseDurationParam(cfg.Strategy.Params, "frequency"); ok {
-			dcaCfg.Frequency = v
-		}
-		if v, ok := config.ParseIntParam(cfg.Strategy.Params, "max_safety_orders"); ok {
-			dcaCfg.MaxSafetyOrders = int(v)
-		}
-		strat = strategy.NewDCA(dcaCfg)
-	case "grid":
-		gridCfg := config.DefaultGridConfig()
-		gridCfg.Symbol = cfg.Strategy.Symbol
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "lower_bound"); ok {
-			gridCfg.LowerBound = v
-		}
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "upper_bound"); ok {
-			gridCfg.UpperBound = v
-		}
-		if v, ok := config.ParseIntParam(cfg.Strategy.Params, "grid_levels"); ok {
-			gridCfg.GridLevels = int(v)
-		}
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "order_size"); ok {
-			gridCfg.OrderSize = v
-		}
-		strat = strategy.NewGRID(gridCfg)
-	case "signal":
-		sigCfg := config.DefaultSignalConfig()
-		sigCfg.Symbol = cfg.Strategy.Symbol
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "position_size"); ok {
-			sigCfg.PositionSize = v
-		}
-		strat = strategy.NewSignal(sigCfg)
-	default:
-		return "", fmt.Errorf("unknown strategy: %s", cfg.Strategy.Type)
-	}
+	// Build strategy using use case
+	strat := usecases.BuildStrategy(cfg)
 
 	botID := cfg.ID
 	if botID == "" {

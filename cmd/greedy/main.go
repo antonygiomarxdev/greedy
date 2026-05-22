@@ -12,11 +12,11 @@ import (
 
 	"github.com/antonygiomarxdev/greedy/internal/backtest"
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/config"
 	"github.com/antonygiomarxdev/greedy/internal/db"
 	"github.com/antonygiomarxdev/greedy/internal/exchange/paper"
 	"github.com/antonygiomarxdev/greedy/internal/mcp"
+	"github.com/antonygiomarxdev/greedy/internal/usecases"
 	"github.com/antonygiomarxdev/greedy/internal/version"
 )
 
@@ -100,7 +100,7 @@ func runCommand(ctx context.Context, logger *slog.Logger, path string) {
 	exchange.SeedLiquidity(cfg.Strategy.Symbol, 10, 100)
 	exchange.StartFeeds(ctx)
 
-	strat := buildStrategy(cfg)
+	strat := usecases.BuildStrategy(cfg)
 	botID := cfg.ID
 	if botID == "" {
 		botID = fmt.Sprintf("bot-%d", time.Now().Unix())
@@ -133,7 +133,7 @@ func backtestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFi
 		fmt.Fprintf(os.Stderr, "error loading data: %v\n", err)
 		os.Exit(1)
 	}
-	strat := buildStrategy(cfg)
+	strat := usecases.BuildStrategy(cfg)
 	engine := backtest.NewEngine(strat, *cfg, candles)
 	report, err := engine.Run(ctx)
 	if err != nil {
@@ -145,69 +145,6 @@ func backtestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFi
 		fmt.Println(report.FormatJSON())
 	default:
 		fmt.Println(report.FormatText())
-	}
-}
-
-func buildStrategy(cfg *config.BotConfig) bot.Strategy {
-	switch cfg.Strategy.Type {
-	case "dca":
-		dcaCfg := config.DefaultDCAConfig()
-		dcaCfg.Symbol = cfg.Strategy.Symbol
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "base_order_size"); ok {
-			dcaCfg.BaseOrderSize = v
-		}
-		if v, ok := config.ParseDurationParam(cfg.Strategy.Params, "frequency"); ok {
-			dcaCfg.Frequency = v
-		}
-		if v, ok := config.ParseIntParam(cfg.Strategy.Params, "max_safety_orders"); ok {
-			dcaCfg.MaxSafetyOrders = int(v)
-		}
-		if soList, ok := cfg.Strategy.Params["safety_orders"].([]interface{}); ok {
-			var sos []config.SafetyOrder
-			for _, s := range soList {
-				if sm, ok := s.(map[string]interface{}); ok {
-					so := config.SafetyOrder{}
-					if v, ok := config.ParseFloatParam(sm, "price_deviation_pct"); ok {
-						so.PriceDeviationPct = v
-					}
-					if v, ok := config.ParseFloatParam(sm, "volume_scale"); ok {
-						so.VolumeScale = v
-					}
-					sos = append(sos, so)
-				}
-			}
-			if len(sos) > 0 {
-				dcaCfg.SafetyOrders = sos
-			}
-		}
-		return strategy.NewDCA(dcaCfg)
-	case "grid":
-		gridCfg := config.DefaultGridConfig()
-		gridCfg.Symbol = cfg.Strategy.Symbol
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "lower_bound"); ok {
-			gridCfg.LowerBound = v
-		}
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "upper_bound"); ok {
-			gridCfg.UpperBound = v
-		}
-		if v, ok := config.ParseIntParam(cfg.Strategy.Params, "grid_levels"); ok {
-			gridCfg.GridLevels = int(v)
-		}
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "order_size"); ok {
-			gridCfg.OrderSize = v
-		}
-		return strategy.NewGRID(gridCfg)
-	case "signal":
-		sigCfg := config.DefaultSignalConfig()
-		sigCfg.Symbol = cfg.Strategy.Symbol
-		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "position_size"); ok {
-			sigCfg.PositionSize = v
-		}
-		return strategy.NewSignal(sigCfg)
-	default:
-		fmt.Fprintf(os.Stderr, "unsupported strategy: %s\n", cfg.Strategy.Type)
-		os.Exit(1)
-		return nil
 	}
 }
 
