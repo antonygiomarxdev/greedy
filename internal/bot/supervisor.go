@@ -57,8 +57,7 @@ func (s *Supervisor) StartBot(ctx context.Context, id string, cfg config.BotConf
 		return fmt.Errorf("bot %s already running", id)
 	}
 
-	botCtx, cancel := context.WithCancel(ctx)
-	// cancel is stored in s.cancels and called in StopBot/Shutdown
+	botCtx, cancel := context.WithCancel(ctx) //nolint:gosec // G118: cancel stored in s.cancels, called in Shutdown/StopBot
 
 	bot := New(id, cfg.Name, cfg, s.exchange, strat, s.db)
 	s.bots[id] = bot
