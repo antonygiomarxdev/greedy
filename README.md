@@ -132,23 +132,43 @@ Reports include: total return, max drawdown, Sharpe ratio, win rate, profit fact
 
 ## Architecture
 
+Greedy follows **Clean Architecture** with **Vertical Slicing**. Every feature is a complete vertical through all layers: domain → infrastructure → use cases → delivery.
+
 ```
-greedy/
-├── cmd/greedy/              # CLI entry point (5 subcommands)
-├── internal/
-│   ├── config/              # YAML loading + validation (18 tests)
-│   ├── crypto/              # NaCl secretbox + Argon2id (7 tests)
-│   ├── db/                  # SQLite WAL + migrations + repos (11 tests)
-│   ├── exchange/            # Exchange interface + types
-│   │   └── paper/           # Paper trading with matching engine (10 tests)
-│   ├── bot/                 # Strategy interface + supervisor + state machine
-│   │   └── strategy/        # DCA, GRID, Signal (23 tests)
-│   ├── backtest/            # CSV loader + time-accelerated sim (12 tests)
-│   └── mcp/                 # JSON-RPC 2.0 stdio server (9 tests)
-├── examples/                # Strategy YAML + Claude config + sample data
-├── .github/workflows/ci.yml # 4 CI jobs (lint, test, security, build)
-└── .golangci.yml            # 11 linters configured
+cmd/greedy/                     # Composition root (DI wiring only)
+internal/
+  domain/                       # Enterprise business rules
+    exchange/                   # Exchange interface + types
+    bot/                        # Bot + Supervisor interfaces
+    strategy/                   # Strategy interface + config types
+    stream/                     # PriceStreamer, MarketTracker, RateLimiter...
+  usecases/                     # Application business rules
+    start_bot.go                # StartBotUseCase
+    place_order.go              # PlaceOrderUseCase (idempotent)
+    get_portfolio.go            # GetPortfolioUseCase
+  infrastructure/               # Concrete implementations
+    exchange/paper/             # Paper trading (10 tests)
+    db/                         # SQLite WAL + migrations + repos (11 tests)
+    config/                     # YAML loading + validation (18 tests)
+    stream/                     # RateLimiter, PriceStreamer, MarketTracker impls
+  delivery/                     # Input adapters
+    mcp/                        # JSON-RPC 2.0 stdio server (9 tests)
+    cli/                        # CLI subcommand handlers
+├── docs/
+│   └── architecture.md         # Full architecture reference
+├── examples/                   # Strategy YAML + Claude config + sample data
+├── .github/workflows/ci.yml    # 4 CI jobs (lint, test, security, build)
+└── .golangci.yml               # Strict linting config
 ```
+
+**Key rules:**
+- `domain/` imports nothing from other layers
+- `usecases/` depends only on `domain/` interfaces
+- `infrastructure/` implements `domain/` interfaces
+- `delivery/` delegates to use cases
+- `cmd/greedy/main.go` is pure DI wiring — zero business logic
+
+Read the full architecture reference: **[docs/architecture.md](docs/architecture.md)**
 
 ## Roadmap
 
