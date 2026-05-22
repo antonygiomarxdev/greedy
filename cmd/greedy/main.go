@@ -15,6 +15,7 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/config"
 	"github.com/antonygiomarxdev/greedy/internal/db"
 	"github.com/antonygiomarxdev/greedy/internal/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/mcp"
 )
 
 func main() {
@@ -169,5 +170,39 @@ func statusCommand(ctx context.Context, logger *slog.Logger) {
 }
 
 func mcpServeCommand(ctx context.Context, logger *slog.Logger) {
-	fmt.Println("mcp-serve: not yet implemented")
+	// Open DB
+	dataDir := os.Getenv("GREEDY_HOME")
+	if dataDir == "" {
+		home, _ := os.UserHomeDir()
+		dataDir = home + "/.greedy"
+	}
+
+	database, err := db.Open(dataDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close(database)
+
+	if err := db.RunMigrations(database); err != nil {
+		fmt.Fprintf(os.Stderr, "error running migrations: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create paper exchange
+	exchange := paper.New(0.001)
+	exchange.AddMarket("BTC-USD", paper.NewRandomWalkFeed("BTC-USD", 50000, 0.1, 0.3, 100*time.Millisecond))
+	exchange.SeedLiquidity("BTC-USD", 10, 100)
+	exchange.StartFeeds(ctx)
+
+	// Create supervisor
+	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
+
+	// Start MCP server on stdio
+	server := mcp.NewServer(exchange, supervisor, database)
+	logger.Info("mcp server starting on stdio")
+	if err := server.ServeStdio(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "mcp server error: %v\n", err)
+		os.Exit(1)
+	}
 }
