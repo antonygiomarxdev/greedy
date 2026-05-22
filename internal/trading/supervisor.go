@@ -88,7 +88,7 @@ func (s *Supervisor) StartBot(ctx context.Context, id string, cfg config.BotConf
 	bot := New(id, cfg.Name, cfg, s.exchange, strat, s.db)
 	bot.streamer = s.streamer
 	bot.tracker = s.tracker
-	bot.debouncer = debouncer.New(5*time.Second, 10, 30*time.Second)
+	bot.debouncer = buildDebouncer(cfg.Debouncer)
 	bot.idempotency = s.idempotency
 	s.bots[id] = bot
 	s.cancels[id] = cancel
@@ -203,4 +203,22 @@ func (s *Supervisor) ShutdownCtx(ctx context.Context) error {
 		s.logger.Warn("supervisor shutdown cancelled")
 		return ctx.Err()
 	}
+}
+
+func buildDebouncer(cfg config.DebouncerConfig) debouncer.Debouncer {
+	cooldown := 5 * time.Second
+	burstLimit := 10
+	burstWindow := 30 * time.Second
+
+	if cfg.Cooldown > 0 {
+		cooldown = cfg.Cooldown
+	}
+	if cfg.BurstLimit > 0 {
+		burstLimit = cfg.BurstLimit
+	}
+	if cfg.BurstWindow > 0 {
+		burstWindow = cfg.BurstWindow
+	}
+
+	return debouncer.New(cooldown, burstLimit, burstWindow)
 }

@@ -11,11 +11,12 @@ type RootConfig struct {
 }
 
 type BotConfig struct {
-	ID          string         `yaml:"id"`
-	Name        string         `yaml:"name"`
-	Exchange    string         `yaml:"exchange"` // "paper" for paper trading
-	DataDirPath string         `yaml:"data_dir,omitempty"`
-	Strategy    StrategyConfig `yaml:"strategy"`
+	ID          string          `yaml:"id"`
+	Name        string          `yaml:"name"`
+	Exchange    string          `yaml:"exchange"` // "paper" for paper trading
+	DataDirPath string          `yaml:"data_dir,omitempty"`
+	Strategy    StrategyConfig  `yaml:"strategy"`
+	Debouncer   DebouncerConfig `yaml:"debouncer,omitempty"`
 }
 
 func (b *BotConfig) DataDir() string {
@@ -58,4 +59,10 @@ type SignalConfig struct {
 	EntryCondition string  `yaml:"entry_condition"`
 	ExitCondition  string  `yaml:"exit_condition"`
 	PositionSize   float64 `yaml:"position_size"`
+}
+
+type DebouncerConfig struct {
+	Cooldown    time.Duration `yaml:"cooldown"`
+	BurstLimit  int           `yaml:"burst_limit"`
+	BurstWindow time.Duration `yaml:"burst_window"`
 }
