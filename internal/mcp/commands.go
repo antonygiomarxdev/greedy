@@ -54,8 +54,10 @@ func init() {
 
 type getTickerCommand struct{ ex shared.Exchange }
 
-func (c *getTickerCommand) Name() string        { return NameGetTicker }
-func (c *getTickerCommand) Description() string { return "Get current price for a trading symbol" }
+func (c *getTickerCommand) Name() string { return NameGetTicker }
+func (c *getTickerCommand) Description() string {
+	return "Get current price for a trading symbol. Returns symbol, price, and timestamp. Symbol format: BTC-USD, ETH-USD."
+}
 func (c *getTickerCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}}, "required": []string{"symbol"}}
 }
@@ -74,8 +76,10 @@ func (c *getTickerCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 
 type getOrderBookCommand struct{ ex shared.Exchange }
 
-func (c *getOrderBookCommand) Name() string        { return NameGetOrderBook }
-func (c *getOrderBookCommand) Description() string { return "Get current order book for a symbol" }
+func (c *getOrderBookCommand) Name() string { return NameGetOrderBook }
+func (c *getOrderBookCommand) Description() string {
+	return "Get current order book bids and asks for a symbol. Specify depth to limit levels returned. Use before placing orders to check liquidity."
+}
 func (c *getOrderBookCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "depth": map[string]any{"type": "integer", "default": 10}}, "required": []string{"symbol"}}
 }
@@ -97,8 +101,10 @@ func (c *getOrderBookCommand) Execute(ctx context.Context, rawArgs json.RawMessa
 
 type getCandlesCommand struct{ ex shared.Exchange }
 
-func (c *getCandlesCommand) Name() string        { return NameGetCandles }
-func (c *getCandlesCommand) Description() string { return "Get OHLCV candles for a symbol" }
+func (c *getCandlesCommand) Name() string { return NameGetCandles }
+func (c *getCandlesCommand) Description() string {
+	return "Get OHLCV candles for a symbol. Interval options: 1m, 5m, 15m, 1h, 4h, 1d. Use for technical analysis and backtesting."
+}
 func (c *getCandlesCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "interval": map[string]any{"type": "string", "default": "1h"}, "limit": map[string]any{"type": "integer", "default": 24}}, "required": []string{"symbol"}}
 }
@@ -125,7 +131,7 @@ type placeOrderCommand struct{ ex shared.Exchange }
 
 func (c *placeOrderCommand) Name() string { return NamePlaceOrder }
 func (c *placeOrderCommand) Description() string {
-	return "Place a market or limit order on the exchange"
+	return "Place a market or limit order. Side: buy/sell. Type: market/limit. For market orders, omit price. Returns order ID, status, and fill details."
 }
 func (c *placeOrderCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "side": map[string]any{"type": "string", "enum": []string{"buy", "sell"}}, "type": map[string]any{"type": "string", "enum": []string{"market", "limit"}, "default": "market"}, "quantity": map[string]any{"type": "number"}, "price": map[string]any{"type": "number"}}, "required": []string{"symbol", "side", "quantity"}}
@@ -151,8 +157,10 @@ func (c *placeOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 
 type cancelOrderCommand struct{ ex shared.Exchange }
 
-func (c *cancelOrderCommand) Name() string        { return NameCancelOrder }
-func (c *cancelOrderCommand) Description() string { return "Cancel an open order by ID" }
+func (c *cancelOrderCommand) Name() string { return NameCancelOrder }
+func (c *cancelOrderCommand) Description() string {
+	return "Cancel an open order by ID. Use list_bots or get_bot_status to find order IDs. Returns success or error if order not found."
+}
 func (c *cancelOrderCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"order_id": map[string]any{"type": "string"}}, "required": []string{"order_id"}}
 }
@@ -170,8 +178,10 @@ func (c *cancelOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessag
 
 type getPositionsCommand struct{ ex shared.Exchange }
 
-func (c *getPositionsCommand) Name() string        { return NameGetPositions }
-func (c *getPositionsCommand) Description() string { return "Get all current positions with P&L" }
+func (c *getPositionsCommand) Name() string { return NameGetPositions }
+func (c *getPositionsCommand) Description() string {
+	return "Get all current positions with quantity, average entry price, unrealized and realized P&L. Use before placing orders to check exposure."
+}
 func (c *getPositionsCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{}}
 }
@@ -186,8 +196,10 @@ func (c *getPositionsCommand) Execute(ctx context.Context, _ json.RawMessage) (s
 
 type getBalancesCommand struct{ ex shared.Exchange }
 
-func (c *getBalancesCommand) Name() string        { return NameGetBalances }
-func (c *getBalancesCommand) Description() string { return "Get account balances" }
+func (c *getBalancesCommand) Name() string { return NameGetBalances }
+func (c *getBalancesCommand) Description() string {
+	return "Get account balances for all assets. Returns free and total balance per asset. USD is the quote currency."
+}
 func (c *getBalancesCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{}}
 }
@@ -206,7 +218,7 @@ type startBotCommand struct {
 
 func (c *startBotCommand) Name() string { return NameStartBot }
 func (c *startBotCommand) Description() string {
-	return "Start a trading bot from a YAML strategy file"
+	return "Start a trading bot from a YAML strategy file. Supported types: dca, grid, signal. The bot runs in the daemon and places orders automatically. Use list_bots to monitor."
 }
 func (c *startBotCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"strategy_file": map[string]any{"type": "string"}}, "required": []string{"strategy_file"}}
@@ -242,8 +254,10 @@ func (c *startBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) 
 
 type stopBotCommand struct{ sup *trading.Supervisor }
 
-func (c *stopBotCommand) Name() string        { return NameStopBot }
-func (c *stopBotCommand) Description() string { return "Stop a running trading bot" }
+func (c *stopBotCommand) Name() string { return NameStopBot }
+func (c *stopBotCommand) Description() string {
+	return "Stop a running trading bot by ID. Cancels all open orders. Bot state is persisted and can be inspected with status command."
+}
 func (c *stopBotCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"bot_id": map[string]any{"type": "string"}}, "required": []string{"bot_id"}}
 }
@@ -263,7 +277,7 @@ type listBotsCommand struct{ sup *trading.Supervisor }
 
 func (c *listBotsCommand) Name() string { return NameListBots }
 func (c *listBotsCommand) Description() string {
-	return "List all active trading bots with status and P&L"
+	return "List all active trading bots with strategy, symbol, status, and error info. Use get_bot_status for detailed P&L and open orders."
 }
 func (c *listBotsCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{}}
@@ -280,7 +294,7 @@ type addMarketCommand struct {
 
 func (c *addMarketCommand) Name() string { return NameAddMarket }
 func (c *addMarketCommand) Description() string {
-	return "Add a new market/symbol with a simulated price feed"
+	return "Add a new trading symbol with a simulated random-walk price feed. The symbol is auto-registered in the price streamer so bots can trade it immediately."
 }
 func (c *addMarketCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "initial_price": map[string]any{"type": "number", "default": 50000}, "drift": map[string]any{"type": "number", "default": 0.1}, "volatility": map[string]any{"type": "number", "default": 0.3}, "liquidity_levels": map[string]any{"type": "integer", "default": 10}, "liquidity_depth": map[string]any{"type": "number", "default": 100}}, "required": []string{"symbol"}}
@@ -330,7 +344,7 @@ type getBotStatusCommand struct{ sup *trading.Supervisor }
 
 func (c *getBotStatusCommand) Name() string { return NameGetBotStatus }
 func (c *getBotStatusCommand) Description() string {
-	return "Get detailed status, P&L, and configuration of a running bot"
+	return "Get detailed status, strategy config, P&L, and open orders for a specific bot. Use list_bots to discover bot IDs first."
 }
 func (c *getBotStatusCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"bot_id": map[string]any{"type": "string"}}, "required": []string{"bot_id"}}
