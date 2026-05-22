@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 )
 
 func setupServer(t *testing.T) (*Server, context.Context) {

@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/config"
-	"github.com/antonygiomarxdev/greedy/internal/db"
 	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 )
 
 type Status string

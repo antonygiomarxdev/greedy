@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
 type StartBotUseCase struct {

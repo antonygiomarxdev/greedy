@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/config"
 	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
 type DCA struct {

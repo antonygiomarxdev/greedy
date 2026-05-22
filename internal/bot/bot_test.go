@@ -7,8 +7,8 @@ import (
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
 	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
-	"github.com/antonygiomarxdev/greedy/internal/config"
-	"github.com/antonygiomarxdev/greedy/internal/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 )
 
 func TestMultiBotConcurrent(t *testing.T) {

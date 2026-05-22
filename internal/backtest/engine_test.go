@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
-	"github.com/antonygiomarxdev/greedy/internal/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
 func makeCandles(n int, symbol string, startPrice, trend float64) []Candle {

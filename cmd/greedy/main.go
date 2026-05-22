@@ -12,9 +12,9 @@ import (
 
 	"github.com/antonygiomarxdev/greedy/internal/backtest"
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/config"
-	"github.com/antonygiomarxdev/greedy/internal/db"
-	"github.com/antonygiomarxdev/greedy/internal/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 	"github.com/antonygiomarxdev/greedy/internal/mcp"
 	"github.com/antonygiomarxdev/greedy/internal/usecases"
 	"github.com/antonygiomarxdev/greedy/internal/version"

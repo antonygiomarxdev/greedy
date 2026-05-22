@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/config"
 	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
-	"github.com/antonygiomarxdev/greedy/internal/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 )
 
 type Engine struct {
