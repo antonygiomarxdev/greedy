@@ -1,0 +1,15 @@
+id: dca-btc-backtest
+name: "BTC DCA Backtest"
+exchange: paper
+strategy:
+  type: dca
+  symbol: BTC-USD
+  params:
+    base_order_size: 5000
+    frequency: "1ms"
+    max_safety_orders: 3
+    safety_orders:
+      - price_deviation_pct: -3
+        volume_scale: 1.5
+      - price_deviation_pct: -6
+        volume_scale: 2.0

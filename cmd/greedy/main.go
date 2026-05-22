@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/backtest"
 	"github.com/antonygiomarxdev/greedy/internal/bot"
 	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/config"
@@ -23,10 +24,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, `Greedy - Sovereign Algorithmic Trading Engine
 
 Usage:
-  greedy run --strategy <file>    Run a trading strategy
-  greedy status                   Show active bots
-  greedy mcp-serve                Start MCP server (stdio)
-  greedy version                  Print version
+  greedy run --strategy <file>        Run a trading strategy
+  greedy backtest --strategy <file> --data <csv>   Run backtest
+  greedy status                       Show active bots
+  greedy mcp-serve                    Start MCP server (stdio)
+  greedy version                      Print version
 
 `)
 	}
@@ -52,6 +54,13 @@ Usage:
 		stratFile := runCmd.String("strategy", "", "strategy YAML file to run")
 		runCmd.Parse(args[1:])
 		runCommand(ctx, logger, *stratFile)
+	case "backtest":
+		backtestCmd := flag.NewFlagSet("backtest", flag.ExitOnError)
+		stratFile := backtestCmd.String("strategy", "", "strategy YAML file")
+		dataFile := backtestCmd.String("data", "", "CSV data file (timestamp,open,high,low,close,volume)")
+		reportFmt := backtestCmd.String("report", "text", "report format: text, json")
+		backtestCmd.Parse(args[1:])
+		backtestCommand(ctx, logger, *stratFile, *dataFile, *reportFmt)
 	case "status":
 		statusCommand(ctx, logger)
 	case "mcp-serve":
@@ -70,37 +79,75 @@ func runCommand(ctx context.Context, logger *slog.Logger, path string) {
 		fmt.Fprintln(os.Stderr, "error: --strategy flag is required for run command")
 		os.Exit(1)
 	}
-
-	// Load strategy config
 	cfg, err := config.LoadStrategyFile(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error loading strategy: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Open DB
 	database, err := db.Open(cfg.DataDir())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close(database)
-
 	if err := db.RunMigrations(database); err != nil {
 		fmt.Fprintf(os.Stderr, "error running migrations: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Create paper exchange
-	exchange := paper.New(0.001) // 0.1% fee
+	exchange := paper.New(0.001)
 	exchange.AddMarket(cfg.Strategy.Symbol, paper.NewRandomWalkFeed(cfg.Strategy.Symbol, 50000, 0.1, 0.3, 100*time.Millisecond))
 	exchange.SeedLiquidity(cfg.Strategy.Symbol, 10, 100)
-
-	// Start price feeds
 	exchange.StartFeeds(ctx)
 
-	// Create strategy instance
-	var strat bot.Strategy
+	strat := buildStrategy(cfg)
+	botID := cfg.ID
+	if botID == "" {
+		botID = fmt.Sprintf("bot-%d", time.Now().Unix())
+	}
+	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
+	if err := supervisor.StartBot(ctx, botID, *cfg, strat); err != nil {
+		fmt.Fprintf(os.Stderr, "error starting bot: %v\n", err)
+		os.Exit(1)
+	}
+	logger.Info("bot running", "id", botID, "strategy", cfg.Strategy.Type, "symbol", cfg.Strategy.Symbol)
+	logger.Info("press Ctrl+C to stop")
+	<-ctx.Done()
+	logger.Info("shutting down...")
+	supervisor.Shutdown()
+	logger.Info("shutdown complete")
+}
+
+func backtestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFile, reportFmt string) {
+	if stratFile == "" || dataFile == "" {
+		fmt.Fprintln(os.Stderr, "error: --strategy and --data are required")
+		os.Exit(1)
+	}
+	cfg, err := config.LoadStrategyFile(stratFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error loading strategy: %v\n", err)
+		os.Exit(1)
+	}
+	candles, err := backtest.LoadCSV(dataFile, cfg.Strategy.Symbol)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error loading data: %v\n", err)
+		os.Exit(1)
+	}
+	strat := buildStrategy(cfg)
+	engine := backtest.NewEngine(strat, *cfg, candles)
+	report, err := engine.Run(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "backtest error: %v\n", err)
+		os.Exit(1)
+	}
+	switch reportFmt {
+	case "json":
+		fmt.Println(report.FormatJSON())
+	default:
+		fmt.Println(report.FormatText())
+	}
+}
+
+func buildStrategy(cfg *config.BotConfig) bot.Strategy {
 	switch cfg.Strategy.Type {
 	case "dca":
 		dcaCfg := config.DefaultDCAConfig()
@@ -132,7 +179,7 @@ func runCommand(ctx context.Context, logger *slog.Logger, path string) {
 				dcaCfg.SafetyOrders = sos
 			}
 		}
-		strat = strategy.NewDCA(dcaCfg)
+		return strategy.NewDCA(dcaCfg)
 	case "grid":
 		gridCfg := config.DefaultGridConfig()
 		gridCfg.Symbol = cfg.Strategy.Symbol
@@ -148,44 +195,19 @@ func runCommand(ctx context.Context, logger *slog.Logger, path string) {
 		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "order_size"); ok {
 			gridCfg.OrderSize = v
 		}
-		strat = strategy.NewGRID(gridCfg)
+		return strategy.NewGRID(gridCfg)
 	case "signal":
 		sigCfg := config.DefaultSignalConfig()
 		sigCfg.Symbol = cfg.Strategy.Symbol
 		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "position_size"); ok {
 			sigCfg.PositionSize = v
 		}
-		strat = strategy.NewSignal(sigCfg)
+		return strategy.NewSignal(sigCfg)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown strategy type: %s\n", cfg.Strategy.Type)
+		fmt.Fprintf(os.Stderr, "unsupported strategy: %s\n", cfg.Strategy.Type)
 		os.Exit(1)
+		return nil
 	}
-
-	// Create bot ID
-	botID := cfg.ID
-	if botID == "" {
-		botID = fmt.Sprintf("bot-%d", time.Now().Unix())
-	}
-	botName := cfg.Name
-	if botName == "" {
-		botName = botID
-	}
-
-	// Start supervisor
-	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
-	if err := supervisor.StartBot(ctx, botID, *cfg, strat); err != nil {
-		fmt.Fprintf(os.Stderr, "error starting bot: %v\n", err)
-		os.Exit(1)
-	}
-
-	logger.Info("bot running", "id", botID, "strategy", cfg.Strategy.Type, "symbol", cfg.Strategy.Symbol)
-	logger.Info("press Ctrl+C to stop")
-
-	// Wait for signal
-	<-ctx.Done()
-	logger.Info("shutting down...")
-	supervisor.Shutdown()
-	logger.Info("shutdown complete")
 }
 
 func statusCommand(ctx context.Context, logger *slog.Logger) {
@@ -193,35 +215,26 @@ func statusCommand(ctx context.Context, logger *slog.Logger) {
 }
 
 func mcpServeCommand(ctx context.Context, logger *slog.Logger) {
-	// Open DB
 	dataDir := os.Getenv("GREEDY_HOME")
 	if dataDir == "" {
 		home, _ := os.UserHomeDir()
 		dataDir = home + "/.greedy"
 	}
-
 	database, err := db.Open(dataDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close(database)
-
 	if err := db.RunMigrations(database); err != nil {
 		fmt.Fprintf(os.Stderr, "error running migrations: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Create paper exchange
 	exchange := paper.New(0.001)
 	exchange.AddMarket("BTC-USD", paper.NewRandomWalkFeed("BTC-USD", 50000, 0.1, 0.3, 100*time.Millisecond))
 	exchange.SeedLiquidity("BTC-USD", 10, 100)
 	exchange.StartFeeds(ctx)
-
-	// Create supervisor
 	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
-
-	// Start MCP server on stdio
 	server := mcp.NewServer(exchange, supervisor, database)
 	logger.Info("mcp server starting on stdio")
 	if err := server.ServeStdio(ctx); err != nil {
