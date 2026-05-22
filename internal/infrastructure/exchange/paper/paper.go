@@ -34,8 +34,8 @@ func New(feeRate float64) *PaperExchange {
 	}
 
 	// Default BTC-USD market
-	pe.books["BTC-USD"] = NewOrderBook()
-	pe.feeds["BTC-USD"] = NewRandomWalkFeed("BTC-USD", 50000, 0.1, 0.3, 100*time.Millisecond)
+	pe.books[exchange.DefaultSymbol] = NewOrderBook()
+	pe.feeds[exchange.DefaultSymbol] = NewRandomWalkFeed(exchange.DefaultSymbol, exchange.DefaultBasePrice, exchange.DefaultRandomWalkDrift, exchange.DefaultRandomWalkVolatility, exchange.DefaultTickInterval)
 
 	return pe
 }

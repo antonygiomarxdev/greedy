@@ -9,19 +9,20 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 	"github.com/antonygiomarxdev/greedy/internal/usecases"
 )
 
 type Server struct {
-	exchange   exchange.Exchange
+	exchange   dexchange.Exchange
 	supervisor *bot.Supervisor
 	db         *sql.DB
 	logger     *slog.Logger
 }
 
-func NewServer(ex exchange.Exchange, sup *bot.Supervisor, database *sql.DB) *Server {
+func NewServer(ex dexchange.Exchange, sup *bot.Supervisor, database *sql.DB) *Server {
 	return &Server{
 		exchange:   ex,
 		supervisor: sup,
@@ -30,12 +31,10 @@ func NewServer(ex exchange.Exchange, sup *bot.Supervisor, database *sql.DB) *Ser
 	}
 }
 
-// Tool definitions and handlers
-
 type ToolDef struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	InputSchema map[string]interface{} `json:"inputSchema"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	InputSchema map[string]any `json:"inputSchema"`
 }
 
 func (s *Server) ListTools() []ToolDef {
@@ -43,228 +42,213 @@ func (s *Server) ListTools() []ToolDef {
 		{
 			Name:        "get_ticker",
 			Description: "Get current price for a trading symbol",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"symbol": map[string]interface{}{
-						"type":        "string",
-						"description": "Trading pair symbol, e.g. BTC-USD",
-					},
-				},
-				"required": []string{"symbol"},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}}, "required": []string{"symbol"}},
 		},
 		{
 			Name:        "get_order_book",
 			Description: "Get current order book for a symbol",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"symbol": map[string]interface{}{"type": "string"},
-					"depth":  map[string]interface{}{"type": "integer", "default": 10},
-				},
-				"required": []string{"symbol"},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "depth": map[string]any{"type": "integer", "default": 10}}, "required": []string{"symbol"}},
 		},
 		{
 			Name:        "get_candles",
 			Description: "Get OHLCV candles for a symbol",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"symbol":   map[string]interface{}{"type": "string"},
-					"interval": map[string]interface{}{"type": "string", "default": "1h"},
-					"limit":    map[string]interface{}{"type": "integer", "default": 24},
-				},
-				"required": []string{"symbol"},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "interval": map[string]any{"type": "string", "default": "1h"}, "limit": map[string]any{"type": "integer", "default": 24}}, "required": []string{"symbol"}},
 		},
 		{
 			Name:        "place_order",
 			Description: "Place a market or limit order on the exchange",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"symbol":   map[string]interface{}{"type": "string"},
-					"side":     map[string]interface{}{"type": "string", "enum": []string{"buy", "sell"}},
-					"type":     map[string]interface{}{"type": "string", "enum": []string{"market", "limit"}, "default": "market"},
-					"quantity": map[string]interface{}{"type": "number"},
-					"price":    map[string]interface{}{"type": "number", "description": "Required for limit orders"},
-				},
-				"required": []string{"symbol", "side", "quantity"},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "side": map[string]any{"type": "string", "enum": []string{"buy", "sell"}}, "type": map[string]any{"type": "string", "enum": []string{"market", "limit"}, "default": "market"}, "quantity": map[string]any{"type": "number"}, "price": map[string]any{"type": "number"}}, "required": []string{"symbol", "side", "quantity"}},
 		},
 		{
 			Name:        "cancel_order",
 			Description: "Cancel an open order by ID",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"order_id": map[string]interface{}{"type": "string"},
-				},
-				"required": []string{"order_id"},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"order_id": map[string]any{"type": "string"}}, "required": []string{"order_id"}},
 		},
 		{
 			Name:        "get_positions",
 			Description: "Get all current positions with P&L",
-			InputSchema: map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
 		},
 		{
 			Name:        "get_balances",
 			Description: "Get account balances",
-			InputSchema: map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
 		},
 		{
 			Name:        "start_bot",
 			Description: "Start a trading bot from a YAML strategy file",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"strategy_file": map[string]interface{}{"type": "string", "description": "Path to YAML strategy file"},
-				},
-				"required": []string{"strategy_file"},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"strategy_file": map[string]any{"type": "string"}}, "required": []string{"strategy_file"}},
 		},
 		{
 			Name:        "stop_bot",
 			Description: "Stop a running trading bot",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"bot_id": map[string]interface{}{"type": "string"},
-				},
-				"required": []string{"bot_id"},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"bot_id": map[string]any{"type": "string"}}, "required": []string{"bot_id"}},
 		},
 		{
 			Name:        "list_bots",
 			Description: "List all active trading bots with status and P&L",
-			InputSchema: map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
-			},
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
+		},
+		{
+			Name:        "add_market",
+			Description: "Add a new market/symbol with a simulated price feed",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "initial_price": map[string]any{"type": "number", "default": 50000}, "drift": map[string]any{"type": "number", "default": 0.1}, "volatility": map[string]any{"type": "number", "default": 0.3}, "liquidity_levels": map[string]any{"type": "integer", "default": 10}, "liquidity_depth": map[string]any{"type": "number", "default": 100}}, "required": []string{"symbol"}},
+		},
+		{
+			Name:        "get_bot_status",
+			Description: "Get detailed status, P&L, and configuration of a running bot",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{"bot_id": map[string]any{"type": "string"}}, "required": []string{"bot_id"}},
 		},
 	}
 }
 
-func (s *Server) CallTool(ctx context.Context, name string, args map[string]interface{}) (string, error) {
+func (s *Server) CallTool(ctx context.Context, name string, rawArgs json.RawMessage) (string, error) {
 	switch name {
 	case "get_ticker":
-		return s.handleGetTicker(ctx, args)
+		var p GetTickerParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleGetTicker(ctx, p)
 	case "get_order_book":
-		return s.handleGetOrderBook(ctx, args)
+		var p GetOrderBookParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleGetOrderBook(ctx, p)
 	case "get_candles":
-		return s.handleGetCandles(ctx, args)
+		var p GetCandlesParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleGetCandles(ctx, p)
 	case "place_order":
-		return s.handlePlaceOrder(ctx, args)
+		var p PlaceOrderParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handlePlaceOrder(ctx, p)
 	case "cancel_order":
-		return s.handleCancelOrder(ctx, args)
+		var p CancelOrderParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleCancelOrder(ctx, p)
 	case "get_positions":
-		return s.handleGetPositions(ctx, args)
+		return s.handleGetPositions(ctx)
 	case "get_balances":
-		return s.handleGetBalances(ctx, args)
+		return s.handleGetBalances(ctx)
 	case "start_bot":
-		return s.handleStartBot(ctx, args)
+		var p StartBotParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleStartBot(ctx, p)
 	case "stop_bot":
-		return s.handleStopBot(ctx, args)
+		var p StopBotParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleStopBot(ctx, p)
 	case "list_bots":
-		return s.handleListBots(ctx, args)
+		return s.handleListBots(ctx)
+	case "add_market":
+		var p AddMarketParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleAddMarket(ctx, p)
+	case "get_bot_status":
+		var p GetBotStatusParams
+		if err := json.Unmarshal(rawArgs, &p); err != nil {
+			return "", fmt.Errorf("invalid params: %w", err)
+		}
+		return s.handleGetBotStatus(ctx, p)
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
 }
 
-func (s *Server) handleGetTicker(ctx context.Context, args map[string]interface{}) (string, error) {
-	symbol := getString(args, "symbol")
-	ticker, err := s.exchange.GetTicker(ctx, symbol)
+func (s *Server) handleGetTicker(ctx context.Context, p GetTickerParams) (string, error) {
+	ticker, err := s.exchange.GetTicker(ctx, p.Symbol)
 	if err != nil {
 		return "", err
 	}
-	return toJSON(ticker)
+	return jsonString(ticker)
 }
 
-func (s *Server) handleGetOrderBook(ctx context.Context, args map[string]interface{}) (string, error) {
-	symbol := getString(args, "symbol")
-	depth := getInt(args, "depth", 10)
-	book, err := s.exchange.GetOrderBook(ctx, symbol, depth)
+func (s *Server) handleGetOrderBook(ctx context.Context, p GetOrderBookParams) (string, error) {
+	if p.Depth == 0 {
+		p.Depth = 10
+	}
+	book, err := s.exchange.GetOrderBook(ctx, p.Symbol, p.Depth)
 	if err != nil {
 		return "", err
 	}
-	return toJSON(book)
+	return jsonString(book)
 }
 
-func (s *Server) handleGetCandles(ctx context.Context, args map[string]interface{}) (string, error) {
-	symbol := getString(args, "symbol")
-	interval := getStringDefault(args, "interval", "1h")
-	limit := getInt(args, "limit", 24)
-	candles, err := s.exchange.GetCandles(ctx, symbol, exchange.CandleInterval(interval), limit)
+func (s *Server) handleGetCandles(ctx context.Context, p GetCandlesParams) (string, error) {
+	if p.Interval == "" {
+		p.Interval = "1h"
+	}
+	if p.Limit == 0 {
+		p.Limit = 24
+	}
+	candles, err := s.exchange.GetCandles(ctx, p.Symbol, dexchange.CandleInterval(p.Interval), p.Limit)
 	if err != nil {
 		return "", err
 	}
-	return toJSON(candles)
+	return jsonString(candles)
 }
 
-func (s *Server) handlePlaceOrder(ctx context.Context, args map[string]interface{}) (string, error) {
-	symbol := getString(args, "symbol")
-	side := exchange.OrderSide(getString(args, "side"))
-	orderType := exchange.OrderType(getStringDefault(args, "type", "market"))
-	quantity := getFloat(args, "quantity")
-	price := getFloatDefault(args, "price", 0)
-
-	order, err := s.exchange.PlaceOrder(ctx, exchange.OrderRequest{
-		Symbol:   symbol,
-		Side:     side,
-		Type:     orderType,
-		Quantity: quantity,
-		Price:    price,
+func (s *Server) handlePlaceOrder(ctx context.Context, p PlaceOrderParams) (string, error) {
+	order, err := s.exchange.PlaceOrder(ctx, dexchange.OrderRequest{
+		Symbol:   p.Symbol,
+		Side:     dexchange.OrderSide(p.Side),
+		Type:     dexchange.OrderType(p.Type),
+		Quantity: p.Quantity,
+		Price:    p.Price,
 	})
 	if err != nil {
 		return "", err
 	}
-	return toJSON(order)
+	return jsonString(order)
 }
 
-func (s *Server) handleCancelOrder(ctx context.Context, args map[string]interface{}) (string, error) {
-	orderID := getString(args, "order_id")
-	if err := s.exchange.CancelOrder(ctx, orderID); err != nil {
+func (s *Server) handleCancelOrder(ctx context.Context, p CancelOrderParams) (string, error) {
+	if err := s.exchange.CancelOrder(ctx, p.OrderID); err != nil {
 		return "", err
 	}
-	return `{"cancelled": true, "order_id": "` + orderID + `"}`, nil
+	return fmt.Sprintf(`{"cancelled": true, "order_id": "%s"}`, p.OrderID), nil
 }
 
-func (s *Server) handleGetPositions(ctx context.Context, args map[string]interface{}) (string, error) {
-	positions, err := s.exchange.ListPositions(ctx)
+func (s *Server) handleGetPositions(_ context.Context) (string, error) {
+	positions, err := s.exchange.ListPositions(context.Background())
 	if err != nil {
 		return "", err
 	}
-	return toJSON(positions)
+	return jsonString(positions)
 }
 
-func (s *Server) handleGetBalances(ctx context.Context, args map[string]interface{}) (string, error) {
-	balances, err := s.exchange.ListBalances(ctx)
+func (s *Server) handleGetBalances(_ context.Context) (string, error) {
+	balances, err := s.exchange.ListBalances(context.Background())
 	if err != nil {
 		return "", err
 	}
-	return toJSON(balances)
+	return jsonString(balances)
 }
 
-func (s *Server) handleStartBot(ctx context.Context, args map[string]interface{}) (string, error) {
-	stratFile := getString(args, "strategy_file")
-
-	cfg, err := config.LoadStrategyFile(stratFile)
+func (s *Server) handleStartBot(ctx context.Context, p StartBotParams) (string, error) {
+	cfg, err := config.LoadStrategyFile(p.StrategyFile)
 	if err != nil {
 		return "", fmt.Errorf("load strategy: %w", err)
 	}
 
-	// Build strategy using use case
-	strat := usecases.BuildStrategy(cfg)
+	strat, err := usecases.BuildStrategy(cfg)
+	if err != nil {
+		return "", fmt.Errorf("build strategy: %w", err)
+	}
 
 	botID := cfg.ID
 	if botID == "" {
@@ -278,73 +262,64 @@ func (s *Server) handleStartBot(ctx context.Context, args map[string]interface{}
 	return fmt.Sprintf(`{"started": true, "bot_id": "%s", "strategy": "%s", "symbol": "%s"}`, botID, cfg.Strategy.Type, cfg.Strategy.Symbol), nil
 }
 
-func (s *Server) handleStopBot(ctx context.Context, args map[string]interface{}) (string, error) {
-	botID := getString(args, "bot_id")
-	if err := s.supervisor.StopBot(botID); err != nil {
+func (s *Server) handleStopBot(ctx context.Context, p StopBotParams) (string, error) {
+	if err := s.supervisor.StopBot(p.BotID); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(`{"stopped": true, "bot_id": "%s"}`, botID), nil
+	return fmt.Sprintf(`{"stopped": true, "bot_id": "%s"}`, p.BotID), nil
 }
 
-func (s *Server) handleListBots(ctx context.Context, args map[string]interface{}) (string, error) {
+func (s *Server) handleListBots(_ context.Context) (string, error) {
 	bots := s.supervisor.ListBots()
-	return toJSON(bots)
+	return jsonString(bots)
 }
 
-func toJSON(v interface{}) (string, error) {
+func (s *Server) handleAddMarket(ctx context.Context, p AddMarketParams) (string, error) {
+	pex, ok := s.exchange.(interface {
+		AddMarket(symbol string, feed interface{})
+		SeedLiquidity(symbol string, levels int, depth float64)
+		StartFeeds(ctx context.Context)
+	})
+	if !ok {
+		return "", fmt.Errorf("exchange does not support AddMarket")
+	}
+
+	if p.InitialPrice == 0 {
+		p.InitialPrice = dexchange.DefaultBasePrice
+	}
+	if p.Drift == 0 {
+		p.Drift = dexchange.DefaultRandomWalkDrift
+	}
+	if p.Volatility == 0 {
+		p.Volatility = dexchange.DefaultRandomWalkVolatility
+	}
+	if p.LiquidityLevels == 0 {
+		p.LiquidityLevels = dexchange.DefaultLiquidityLevels
+	}
+	if p.LiquidityDepth == 0 {
+		p.LiquidityDepth = dexchange.DefaultLiquidityDepth
+	}
+
+	pex.AddMarket(p.Symbol, paper.NewRandomWalkFeed(p.Symbol, p.InitialPrice, p.Drift, p.Volatility, dexchange.DefaultTickInterval))
+	pex.SeedLiquidity(p.Symbol, p.LiquidityLevels, p.LiquidityDepth)
+	pex.StartFeeds(ctx)
+
+	return fmt.Sprintf(`{"added": true, "symbol": "%s", "price": %.2f}`, p.Symbol, p.InitialPrice), nil
+}
+
+func (s *Server) handleGetBotStatus(_ context.Context, p GetBotStatusParams) (string, error) {
+	bots := s.supervisor.ListBots()
+	status, ok := bots[p.BotID]
+	if !ok {
+		return "", fmt.Errorf("bot %s not found", p.BotID)
+	}
+	return jsonString(status)
+}
+
+func jsonString(v any) (string, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return "", err
 	}
 	return string(data), nil
-}
-
-func getString(args map[string]interface{}, key string) string {
-	v, _ := args[key].(string)
-	return v
-}
-
-func getStringDefault(args map[string]interface{}, key, def string) string {
-	v, ok := args[key].(string)
-	if !ok || v == "" {
-		return def
-	}
-	return v
-}
-
-func getInt(args map[string]interface{}, key string, def int) int {
-	switch v := args[key].(type) {
-	case float64:
-		return int(v)
-	case int:
-		return v
-	default:
-		return def
-	}
-}
-
-func getFloat(args map[string]interface{}, key string) float64 {
-	switch v := args[key].(type) {
-	case float64:
-		return v
-	case int:
-		return float64(v)
-	default:
-		return 0
-	}
-}
-
-func getFloatDefault(args map[string]interface{}, key string, def float64) float64 {
-	v, ok := args[key]
-	if !ok {
-		return def
-	}
-	switch val := v.(type) {
-	case float64:
-		return val
-	case int:
-		return float64(val)
-	default:
-		return def
-	}
 }

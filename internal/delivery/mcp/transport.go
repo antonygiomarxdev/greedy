@@ -65,8 +65,8 @@ type toolsListResult struct {
 }
 
 type toolCallParams struct {
-	Name      string                 `json:"name"`
-	Arguments map[string]interface{} `json:"arguments"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
 }
 
 type resourcesListResult struct {

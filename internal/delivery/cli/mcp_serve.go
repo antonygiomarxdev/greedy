@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
 	"github.com/antonygiomarxdev/greedy/internal/delivery/mcp"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+
+	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 )
 
 func MCPServeCommand(ctx context.Context, logger *slog.Logger) {
@@ -29,9 +30,9 @@ func MCPServeCommand(ctx context.Context, logger *slog.Logger) {
 		fmt.Fprintf(os.Stderr, "error running migrations: %v\n", err)
 		os.Exit(1)
 	}
-	exchange := paper.New(0.001)
-	exchange.AddMarket("BTC-USD", paper.NewRandomWalkFeed("BTC-USD", 50000, 0.1, 0.3, 100*time.Millisecond))
-	exchange.SeedLiquidity("BTC-USD", 10, 100)
+	exchange := paper.New(dexchange.DefaultFeeRate)
+	exchange.AddMarket(dexchange.DefaultSymbol, paper.NewRandomWalkFeed(dexchange.DefaultSymbol, dexchange.DefaultBasePrice, dexchange.DefaultRandomWalkDrift, dexchange.DefaultRandomWalkVolatility, dexchange.DefaultTickInterval))
+	exchange.SeedLiquidity(dexchange.DefaultSymbol, dexchange.DefaultLiquidityLevels, dexchange.DefaultLiquidityDepth)
 	exchange.StartFeeds(ctx)
 	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
 	server := mcp.NewServer(exchange, supervisor, database)

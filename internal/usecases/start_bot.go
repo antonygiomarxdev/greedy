@@ -18,7 +18,10 @@ func NewStartBotUseCase(sup *bot.Supervisor) *StartBotUseCase {
 }
 
 func (uc *StartBotUseCase) Execute(ctx context.Context, cfg *config.BotConfig) (string, error) {
-	strat := BuildStrategy(cfg)
+	strat, err := BuildStrategy(cfg)
+	if err != nil {
+		return "", fmt.Errorf("build strategy: %w", err)
+	}
 	botID := cfg.ID
 	if botID == "" {
 		botID = fmt.Sprintf("bot-%d", time.Now().Unix())

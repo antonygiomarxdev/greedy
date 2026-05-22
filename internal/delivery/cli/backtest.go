@@ -26,7 +26,11 @@ func BacktestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFi
 		fmt.Fprintf(os.Stderr, "error loading data: %v\n", err)
 		os.Exit(1)
 	}
-	strat := usecases.BuildStrategy(cfg)
+	strat, err := usecases.BuildStrategy(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error building strategy: %v\n", err)
+		os.Exit(1)
+	}
 	engine := backtest.NewEngine(strat, *cfg, candles)
 	report, err := engine.Run(ctx)
 	if err != nil {

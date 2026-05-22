@@ -8,7 +8,7 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
-func BuildStrategy(cfg *config.BotConfig) bot.Strategy {
+func BuildStrategy(cfg *config.BotConfig) (bot.Strategy, error) {
 	switch cfg.Strategy.Type {
 	case "dca":
 		dcaCfg := config.DefaultDCAConfig()
@@ -40,7 +40,7 @@ func BuildStrategy(cfg *config.BotConfig) bot.Strategy {
 				dcaCfg.SafetyOrders = sos
 			}
 		}
-		return strategy.NewDCA(dcaCfg)
+		return strategy.NewDCA(dcaCfg), nil
 	case "grid":
 		gridCfg := config.DefaultGridConfig()
 		gridCfg.Symbol = cfg.Strategy.Symbol
@@ -56,15 +56,15 @@ func BuildStrategy(cfg *config.BotConfig) bot.Strategy {
 		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "order_size"); ok {
 			gridCfg.OrderSize = v
 		}
-		return strategy.NewGRID(gridCfg)
+		return strategy.NewGRID(gridCfg), nil
 	case "signal":
 		sigCfg := config.DefaultSignalConfig()
 		sigCfg.Symbol = cfg.Strategy.Symbol
 		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "position_size"); ok {
 			sigCfg.PositionSize = v
 		}
-		return strategy.NewSignal(sigCfg)
+		return strategy.NewSignal(sigCfg), nil
 	default:
-		panic(fmt.Sprintf("unsupported strategy: %s", cfg.Strategy.Type))
+		return nil, fmt.Errorf("unsupported strategy: %s", cfg.Strategy.Type)
 	}
 }

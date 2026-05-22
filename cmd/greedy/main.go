@@ -46,14 +46,20 @@ Usage:
 	case "run":
 		runCmd := flag.NewFlagSet("run", flag.ExitOnError)
 		stratFile := runCmd.String("strategy", "", "strategy YAML file to run")
-		_ = runCmd.Parse(args[1:])
+		if err := runCmd.Parse(args[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing run flags: %v\n", err)
+			os.Exit(1)
+		}
 		cli.RunCommand(ctx, logger, *stratFile)
 	case "backtest":
 		backtestCmd := flag.NewFlagSet("backtest", flag.ExitOnError)
 		stratFile := backtestCmd.String("strategy", "", "strategy YAML file")
 		dataFile := backtestCmd.String("data", "", "CSV data file (timestamp,open,high,low,close,volume)")
 		reportFmt := backtestCmd.String("report", "text", "report format: text, json")
-		_ = backtestCmd.Parse(args[1:])
+		if err := backtestCmd.Parse(args[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing backtest flags: %v\n", err)
+			os.Exit(1)
+		}
 		cli.BacktestCommand(ctx, logger, *stratFile, *dataFile, *reportFmt)
 	case "status":
 		cli.StatusCommand(ctx, logger)

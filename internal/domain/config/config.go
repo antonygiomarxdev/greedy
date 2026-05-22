@@ -13,15 +13,15 @@ type RootConfig struct {
 type BotConfig struct {
 	ID          string         `yaml:"id"`
 	Name        string         `yaml:"name"`
-	Exchange    string         `yaml:"exchange"` // "paper" for paper trading
+	Exchange    string         `yaml:"exchange"`
 	DataDirPath string         `yaml:"data_dir,omitempty"`
 	Strategy    StrategyConfig `yaml:"strategy"`
 }
 
-func (b BotConfig) ID2() string          { return b.ID }
-func (b BotConfig) Name2() string        { return b.Name }
-func (b BotConfig) StrategyType() string { return b.Strategy.Type }
-func (b BotConfig) Symbol() string       { return b.Strategy.Symbol }
+func (b *BotConfig) GetID() string        { return b.ID }
+func (b *BotConfig) GetName() string      { return b.Name }
+func (b *BotConfig) StrategyType() string { return b.Strategy.Type }
+func (b *BotConfig) Symbol() string       { return b.Strategy.Symbol }
 
 func (b *BotConfig) DataDir() string {
 	if b.DataDirPath != "" {
@@ -32,7 +32,7 @@ func (b *BotConfig) DataDir() string {
 }
 
 type StrategyConfig struct {
-	Type   string                 `yaml:"type"` // "dca", "grid", "signal"
+	Type   string                 `yaml:"type"`
 	Symbol string                 `yaml:"symbol"`
 	Params map[string]interface{} `yaml:"params"`
 }

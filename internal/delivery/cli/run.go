@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
+	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
@@ -34,12 +35,16 @@ func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
 		fmt.Fprintf(os.Stderr, "error running migrations: %v\n", err)
 		os.Exit(1)
 	}
-	exchange := paper.New(0.001)
-	exchange.AddMarket(cfg.Strategy.Symbol, paper.NewRandomWalkFeed(cfg.Strategy.Symbol, 50000, 0.1, 0.3, 100*time.Millisecond))
-	exchange.SeedLiquidity(cfg.Strategy.Symbol, 10, 100)
+	exchange := paper.New(dexchange.DefaultFeeRate)
+	exchange.AddMarket(cfg.Strategy.Symbol, paper.NewRandomWalkFeed(cfg.Strategy.Symbol, dexchange.DefaultBasePrice, dexchange.DefaultRandomWalkDrift, dexchange.DefaultRandomWalkVolatility, dexchange.DefaultTickInterval))
+	exchange.SeedLiquidity(cfg.Strategy.Symbol, dexchange.DefaultLiquidityLevels, dexchange.DefaultLiquidityDepth)
 	exchange.StartFeeds(ctx)
 
-	strat := usecases.BuildStrategy(cfg)
+	strat, err := usecases.BuildStrategy(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error building strategy: %v\n", err)
+		os.Exit(1)
+	}
 	botID := cfg.ID
 	if botID == "" {
 		botID = fmt.Sprintf("bot-%d", time.Now().Unix())

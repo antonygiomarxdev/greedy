@@ -44,10 +44,19 @@ func TestListTools(t *testing.T) {
 	}
 }
 
+func callTool(t *testing.T, srv *Server, ctx context.Context, name string, params any) (string, error) {
+	t.Helper()
+	raw, err := json.Marshal(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return srv.CallTool(ctx, name, raw)
+}
+
 func TestCallGetTicker(t *testing.T) {
 	srv, ctx := setupServer(t)
 
-	result, err := srv.CallTool(ctx, "get_ticker", map[string]interface{}{"symbol": "BTC-USD"})
+	result, err := callTool(t, srv, ctx, "get_ticker", GetTickerParams{Symbol: "BTC-USD"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +73,7 @@ func TestCallGetTicker(t *testing.T) {
 func TestCallGetPositions(t *testing.T) {
 	srv, ctx := setupServer(t)
 
-	result, err := srv.CallTool(ctx, "get_positions", map[string]interface{}{})
+	result, err := callTool(t, srv, ctx, "get_positions", struct{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +85,7 @@ func TestCallGetPositions(t *testing.T) {
 func TestCallGetBalances(t *testing.T) {
 	srv, ctx := setupServer(t)
 
-	result, err := srv.CallTool(ctx, "get_balances", map[string]interface{}{})
+	result, err := callTool(t, srv, ctx, "get_balances", struct{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +97,7 @@ func TestCallGetBalances(t *testing.T) {
 func TestCallListBotsEmpty(t *testing.T) {
 	srv, ctx := setupServer(t)
 
-	result, err := srv.CallTool(ctx, "list_bots", map[string]interface{}{})
+	result, err := callTool(t, srv, ctx, "list_bots", struct{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +109,7 @@ func TestCallListBotsEmpty(t *testing.T) {
 func TestCallUnknownTool(t *testing.T) {
 	srv, ctx := setupServer(t)
 
-	_, err := srv.CallTool(ctx, "nonexistent", map[string]interface{}{})
+	_, err := callTool(t, srv, ctx, "nonexistent", struct{}{})
 	if err == nil {
 		t.Fatal("expected error for unknown tool")
 	}
@@ -109,9 +118,9 @@ func TestCallUnknownTool(t *testing.T) {
 func TestCallGetTickerMissingSymbol(t *testing.T) {
 	srv, ctx := setupServer(t)
 
-	_, err := srv.CallTool(ctx, "get_ticker", map[string]interface{}{})
+	_, err := srv.CallTool(ctx, "get_ticker", json.RawMessage(`{"symbol":""}`))
 	if err == nil {
-		t.Fatal("expected error for missing symbol")
+		t.Fatal("expected error for empty symbol")
 	}
 }
 
