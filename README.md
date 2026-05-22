@@ -1,5 +1,9 @@
 # Greedy
 
+[![CI](https://github.com/antonygiomarxdev/greedy/actions/workflows/ci.yml/badge.svg)](https://github.com/antonygiomarxdev/greedy/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/antonygiomarxdev/greedy/branch/main/graph/badge.svg)](https://codecov.io/gh/antonygiomarxdev/greedy)
+[![Go Report Card](https://goreportcard.com/badge/github.com/antonygiomarxdev/greedy)](https://goreportcard.com/report/github.com/antonygiomarxdev/greedy)
+
 Sovereign, local-first algorithmic trading engine. Single static binary. AI-native via MCP.
 
 ## Philosophy

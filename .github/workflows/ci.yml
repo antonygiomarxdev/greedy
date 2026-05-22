@@ -45,6 +45,11 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: test with race detection + coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic -count=1 -timeout=120s ./...
+      - name: upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.out
+          fail_ci_if_error: false
 
   security:
     name: Security
