@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )
 
 func TestSignal_EntryTrigger(t *testing.T) {
