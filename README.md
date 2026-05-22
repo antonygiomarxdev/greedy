@@ -16,9 +16,22 @@ Sovereign, local-first algorithmic trading engine. Single static binary. AI-nati
 
 ## Quick Start
 
+### Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/antonygiomarxdev/greedy/main/scripts/install.sh | sh
+```
+
+Or build from source:
+
 ```bash
 make build
-./build/greedy run --strategy examples/dca_btc.yaml
+```
+
+### Run a Strategy
+
+```bash
+greedy run --strategy examples/dca_btc.yaml
 # Press Ctrl+C to stop gracefully
 ```
 
