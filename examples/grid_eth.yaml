@@ -1,0 +1,11 @@
+id: grid-eth-01
+name: "ETH GRID Bot"
+exchange: paper
+strategy:
+  type: grid
+  symbol: ETH-USD
+  params:
+    lower_bound: 2000
+    upper_bound: 4000
+    grid_levels: 10
+    order_size: 500

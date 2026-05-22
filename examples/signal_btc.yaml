@@ -1,0 +1,8 @@
+id: signal-btc-01
+name: "BTC Signal Bot"
+exchange: paper
+strategy:
+  type: signal
+  symbol: BTC-USD
+  params:
+    position_size: 1000

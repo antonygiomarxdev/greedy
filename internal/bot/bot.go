@@ -40,17 +40,20 @@ type Bot struct {
 }
 
 func New(id, name string, cfg config.BotConfig, ex exchange.Exchange, strat Strategy, database *sql.DB) *Bot {
-	return &Bot{
+	b := &Bot{
 		ID:       id,
 		Name:     name,
 		Config:   cfg,
 		Exchange: ex,
 		Strategy: strat,
 		DB:       database,
-		repo:     db.NewBotRepository(database),
 		status:   StatusStopped,
 		logger:   slog.Default().With("bot", id),
 	}
+	if database != nil {
+		b.repo = db.NewBotRepository(database)
+	}
+	return b
 }
 
 func (b *Bot) Status() Status {
@@ -127,7 +130,9 @@ func (b *Bot) Run(ctx context.Context) {
 			b.logger.Info("bot stopping")
 			b.setStatus(StatusStopping)
 			b.cancelAllOrders()
-			b.repo.UpdateStatus(b.ID, string(StatusStopped))
+			if b.repo != nil {
+				b.repo.UpdateStatus(b.ID, string(StatusStopped))
+			}
 			b.setStatus(StatusStopped)
 			return
 
@@ -211,6 +216,18 @@ func (b *Bot) tick(ctx context.Context) error {
 		"price", order.Price,
 		"status", order.Status,
 	)
+
+	// Notify strategy of order confirmation (GRID needs this)
+	if confirmer, ok := b.Strategy.(interface{ ConfirmOrder(float64, string) }); ok {
+		confirmer.ConfirmOrder(signal.Price, order.ID)
+	}
+
+	// If filled immediately, notify strategy
+	if order.Status == exchange.StatusFilled || order.Status == exchange.StatusPartiallyFilled {
+		if filler, ok := b.Strategy.(interface{ OrderFilled(float64) }); ok {
+			filler.OrderFilled(signal.Price)
+		}
+	}
 
 	return nil
 }

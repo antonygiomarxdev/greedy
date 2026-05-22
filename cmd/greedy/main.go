@@ -133,6 +133,29 @@ func runCommand(ctx context.Context, logger *slog.Logger, path string) {
 			}
 		}
 		strat = strategy.NewDCA(dcaCfg)
+	case "grid":
+		gridCfg := config.DefaultGridConfig()
+		gridCfg.Symbol = cfg.Strategy.Symbol
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "lower_bound"); ok {
+			gridCfg.LowerBound = v
+		}
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "upper_bound"); ok {
+			gridCfg.UpperBound = v
+		}
+		if v, ok := config.ParseIntParam(cfg.Strategy.Params, "grid_levels"); ok {
+			gridCfg.GridLevels = int(v)
+		}
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "order_size"); ok {
+			gridCfg.OrderSize = v
+		}
+		strat = strategy.NewGRID(gridCfg)
+	case "signal":
+		sigCfg := config.DefaultSignalConfig()
+		sigCfg.Symbol = cfg.Strategy.Symbol
+		if v, ok := config.ParseFloatParam(cfg.Strategy.Params, "position_size"); ok {
+			sigCfg.PositionSize = v
+		}
+		strat = strategy.NewSignal(sigCfg)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown strategy type: %s\n", cfg.Strategy.Type)
 		os.Exit(1)
