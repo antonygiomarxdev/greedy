@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/antonygiomarxdev/greedy/internal/delivery/cli"
+	"github.com/antonygiomarxdev/greedy/internal/cli"
 	"github.com/antonygiomarxdev/greedy/internal/version"
 )
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func setupServer(t *testing.T) (*Server, context.Context) {
@@ -16,7 +16,7 @@ func setupServer(t *testing.T) (*Server, context.Context) {
 	ex.AddMarket("BTC-USD", paper.NewStaticFeed("BTC-USD", 50000))
 	ex.SeedLiquidity("BTC-USD", 10, 100)
 
-	sup := bot.NewSupervisor(ex, nil, bot.RestartNever)
+	sup := trading.NewSupervisor(ex, nil, trading.RestartNever)
 	srv := NewServer(ex, sup, nil)
 	ctx := context.Background()
 

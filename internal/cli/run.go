@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
+	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
 
 func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
@@ -49,7 +49,7 @@ func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
 	if botID == "" {
 		botID = fmt.Sprintf("bot-%d", time.Now().Unix())
 	}
-	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
+	supervisor := trading.NewSupervisor(exchange, database, trading.RestartNever)
 	if err := supervisor.StartBot(ctx, botID, *cfg, strat); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting bot: %v\n", err)
 		os.Exit(1)

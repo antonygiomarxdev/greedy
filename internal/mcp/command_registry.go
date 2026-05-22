@@ -1,12 +1,12 @@
 package mcp
 
 import (
-	"github.com/antonygiomarxdev/greedy/internal/bot"
 	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
-type commandFactory func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command
+type commandFactory func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command
 
 var commandFactories []commandFactory
 

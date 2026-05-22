@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
 
 func makeCandles(n int, symbol string, startPrice, trend float64) []Candle {

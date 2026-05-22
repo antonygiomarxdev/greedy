@@ -8,14 +8,14 @@ import (
 	"log/slog"
 	"sort"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot"
 	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 type Server struct {
 	exchange    dexchange.Exchange
-	supervisor  *bot.Supervisor
+	supervisor  *trading.Supervisor
 	db          *sql.DB
 	logger      *slog.Logger
 	commands    map[string]tool.Command
@@ -28,7 +28,7 @@ type ToolDef struct {
 	InputSchema map[string]any `json:"inputSchema"`
 }
 
-func NewServer(ex dexchange.Exchange, sup *bot.Supervisor, database *sql.DB) *Server {
+func NewServer(ex dexchange.Exchange, sup *trading.Supervisor, database *sql.DB) *Server {
 	s := &Server{
 		exchange:    ex,
 		supervisor:  sup,

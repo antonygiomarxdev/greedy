@@ -1,4 +1,4 @@
-package bot
+package trading
 
 import (
 	domain "github.com/antonygiomarxdev/greedy/internal/domain/bot"

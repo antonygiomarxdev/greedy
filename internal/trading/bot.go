@@ -1,4 +1,4 @@
-package bot
+package trading
 
 import (
 	"context"

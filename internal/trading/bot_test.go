@@ -1,14 +1,14 @@
-package bot_test
+package trading_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
+	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
 
 func TestMultiBotConcurrent(t *testing.T) {
@@ -22,7 +22,7 @@ func TestMultiBotConcurrent(t *testing.T) {
 	defer cancel()
 	ex.StartFeeds(ctx)
 
-	sup := bot.NewSupervisor(ex, nil, bot.RestartNever)
+	sup := trading.NewSupervisor(ex, nil, trading.RestartNever)
 
 	// Start DCA bot
 	dcaCfg := config.DefaultDCAConfig()
@@ -72,7 +72,7 @@ func TestMultiBotConcurrent(t *testing.T) {
 	}
 
 	for id, status := range bots {
-		if status.Status != bot.StatusRunning {
+		if status.Status != trading.StatusRunning {
 			t.Fatalf("bot %s expected running, got %s", id, status.Status)
 		}
 	}

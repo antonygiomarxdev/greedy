@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/delivery/mcp"
 	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/mcp"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func MCPServeCommand(ctx context.Context, logger *slog.Logger) {
@@ -33,7 +33,7 @@ func MCPServeCommand(ctx context.Context, logger *slog.Logger) {
 	exchange.AddMarket(dexchange.DefaultSymbol, paper.NewRandomWalkFeed(dexchange.DefaultSymbol, dexchange.DefaultBasePrice, dexchange.DefaultRandomWalkDrift, dexchange.DefaultRandomWalkVolatility, dexchange.DefaultTickInterval))
 	exchange.SeedLiquidity(dexchange.DefaultSymbol, dexchange.DefaultLiquidityLevels, dexchange.DefaultLiquidityDepth)
 	exchange.StartFeeds(ctx)
-	supervisor := bot.NewSupervisor(exchange, database, bot.RestartNever)
+	supervisor := trading.NewSupervisor(exchange, database, trading.RestartNever)
 	server := mcp.NewServer(exchange, supervisor, database)
 	logger.Info("mcp server starting on stdio")
 	if err := server.ServeStdio(ctx); err != nil {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot"
+	bot "github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 )

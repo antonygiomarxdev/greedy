@@ -6,49 +6,49 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/bot"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
+	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
 
 func init() {
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getTickerCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getOrderBookCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getCandlesCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &placeOrderCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &cancelOrderCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getPositionsCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getBalancesCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &startBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &stopBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &listBotsCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &addMarketCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *bot.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getBotStatusCommand{sup: sup}
 	})
 }
@@ -202,7 +202,7 @@ func (c *getBalancesCommand) Execute(ctx context.Context, _ json.RawMessage) (st
 }
 
 type startBotCommand struct {
-	sup *bot.Supervisor
+	sup *trading.Supervisor
 }
 
 func (c *startBotCommand) Name() string { return tool.NameStartBot }
@@ -241,7 +241,7 @@ func (c *startBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) 
 	return fmt.Sprintf(`{"started": true, "bot_id": "%s", "strategy": "%s", "symbol": "%s"}`, botID, cfg.Strategy.Type, cfg.Strategy.Symbol), nil
 }
 
-type stopBotCommand struct{ sup *bot.Supervisor }
+type stopBotCommand struct{ sup *trading.Supervisor }
 
 func (c *stopBotCommand) Name() string        { return tool.NameStopBot }
 func (c *stopBotCommand) Description() string { return "Stop a running trading bot" }
@@ -260,7 +260,7 @@ func (c *stopBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (
 	return fmt.Sprintf(`{"stopped": true, "bot_id": "%s"}`, p.BotID), nil
 }
 
-type listBotsCommand struct{ sup *bot.Supervisor }
+type listBotsCommand struct{ sup *trading.Supervisor }
 
 func (c *listBotsCommand) Name() string { return tool.NameListBots }
 func (c *listBotsCommand) Description() string {
@@ -318,7 +318,7 @@ func (c *addMarketCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 	return fmt.Sprintf(`{"added": true, "symbol": "%s", "price": %.2f}`, p.Symbol, p.InitialPrice), nil
 }
 
-type getBotStatusCommand struct{ sup *bot.Supervisor }
+type getBotStatusCommand struct{ sup *trading.Supervisor }
 
 func (c *getBotStatusCommand) Name() string { return tool.NameGetBotStatus }
 func (c *getBotStatusCommand) Description() string {

@@ -1,0 +1,55 @@
+package domain
+
+import (
+	"context"
+)
+
+type Action string
+
+const (
+	ActionBuy  Action = "buy"
+	ActionSell Action = "sell"
+	ActionHold Action = "hold"
+)
+
+type Signal struct {
+	Action   Action
+	Symbol   string
+	Quantity float64
+	Price    float64 // 0 = market order
+	Type     OrderType
+}
+
+type BotState struct {
+	Symbol     string
+	Position   *Position
+	Balance    *Balance
+	Ticker     *Ticker
+	OpenOrders []Order
+}
+
+type Strategy interface {
+	Name() string
+	Evaluate(ctx context.Context, state *BotState) (*Signal, error)
+	Reset()
+}
+
+type OrderConfirmer interface {
+	ConfirmOrder(price float64, orderID string)
+}
+
+type OrderFilledListener interface {
+	OrderFilled(price float64)
+}
+
+func NotifyOrderConfirmer(strat Strategy, price float64, orderID string) {
+	if c, ok := strat.(OrderConfirmer); ok {
+		c.ConfirmOrder(price, orderID)
+	}
+}
+
+func NotifyOrderFilled(strat Strategy, price float64) {
+	if f, ok := strat.(OrderFilledListener); ok {
+		f.OrderFilled(price)
+	}
+}

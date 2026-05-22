@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/antonygiomarxdev/greedy/internal/backtest"
-	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
 
 func BacktestCommand(ctx context.Context, logger *slog.Logger, stratFile, dataFile, reportFmt string) {
