@@ -67,3 +67,11 @@ release:
   mode: replace
   footer: |
     **Full Changelog**: https://github.com/antonygiomarxdev/greedy/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+brews:
+  - repository:
+      owner: antonygiomarxdev
+      name: homebrew-tap
+    homepage: "https://github.com/antonygiomarxdev/greedy"
+    description: "Sovereign algorithmic trading engine — single static binary, AI-native via MCP"
+    license: "MIT"
