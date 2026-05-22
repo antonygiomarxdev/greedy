@@ -101,9 +101,8 @@ Track progress on [GitHub Issues](https://github.com/antonygiomarxdev/greedy/iss
 
 - [x] **Phase 1**: Core engine, paper trading, DCA strategy, SQLite, CLI
 - [x] **Phase 2**: MCP server with 10 AI tools (AI-native control)
-- [ ] **Phase 3**: GRID + Signal strategies
-- [ ] **Phase 4**: Backtesting engine
-- [ ] **Phase 5**: Web UI (embedded Svelte dashboard)
+- [x] **Phase 3**: GRID + Signal strategies with multi-bot concurrency
+- [x] **Phase 4**: Backtesting engine with CSV data and rich metrics
 - [ ] **Phase 6**: Real exchange connectors (Coinbase, Binance)
 
 ## Requirements
