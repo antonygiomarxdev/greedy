@@ -84,6 +84,25 @@ type promptsListResult struct {
 	Prompts []PromptDef `json:"prompts"`
 }
 
+type promptsGetResult struct {
+	Messages []promptMessage `json:"messages"`
+}
+
+type promptMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type resourcesReadResult struct {
+	Contents []resourceContent `json:"contents"`
+}
+
+type resourceContent struct {
+	URI      string `json:"uri"`
+	MimeType string `json:"mimeType"`
+	Text     string `json:"text"`
+}
+
 type PromptDef struct {
 	Name        string      `json:"name"`
 	Description string      `json:"description,omitempty"`
@@ -221,6 +240,63 @@ func (s *Server) handleToolsCall(ctx context.Context, req *jsonRPCRequest) (*jso
 		Result: toolResult{
 			Content: []toolContent{{Type: "text", Text: result}},
 		},
+	}, nil
+}
+
+func (s *Server) handleResourcesRead(ctx context.Context, req *jsonRPCRequest) (*jsonRPCResponse, error) {
+	var params struct {
+		URI string `json:"uri"`
+	}
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return nil, fmt.Errorf("invalid resource read params: %w", err)
+	}
+
+	result, err := s.ReadResource(params.URI)
+	if err != nil {
+		return &jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result:  resourcesReadResult{Contents: []resourceContent{}},
+		}, nil
+	}
+
+	return &jsonRPCResponse{
+		JSONRPC: "2.0",
+		ID:      req.ID,
+		Result:  resourcesReadResult{Contents: []resourceContent{{URI: params.URI, MimeType: "application/json", Text: result}}},
+	}, nil
+}
+
+func (s *Server) handlePromptsGet(ctx context.Context, req *jsonRPCRequest) (*jsonRPCResponse, error) {
+	var params struct {
+		Name      string            `json:"name"`
+		Arguments map[string]string `json:"arguments"`
+	}
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return nil, fmt.Errorf("invalid prompt get params: %w", err)
+	}
+
+	messages, err := s.GetPrompt(params.Name, params.Arguments)
+	if err != nil {
+		return &jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result:  promptsGetResult{Messages: nil},
+		}, nil
+	}
+
+	return &jsonRPCResponse{
+		JSONRPC: "2.0",
+		ID:      req.ID,
+		Result:  promptsGetResult{Messages: messages},
+	}, nil
+}
+
+func (s *Server) handlePing(ctx context.Context, req *jsonRPCRequest) (*jsonRPCResponse, error) {
+	return &jsonRPCResponse{
+		JSONRPC: "2.0",
+		ID:      req.ID,
+		Result:  map[string]any{},
 	}, nil
 }
 

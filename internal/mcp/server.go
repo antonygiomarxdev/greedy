@@ -94,3 +94,40 @@ func (s *Server) ListPrompts() []PromptDef {
 	}
 	return out
 }
+
+func (s *Server) ReadResource(uri string) (string, error) {
+	switch uri {
+	case "portfolio://summary":
+		return s.buildPortfolioSummary()
+	default:
+		return "", fmt.Errorf("resource not found: %s", uri)
+	}
+}
+
+func (s *Server) GetPrompt(name string, args map[string]string) ([]promptMessage, error) {
+	return []promptMessage{
+		{Role: "user", Content: fmt.Sprintf("Please execute the %s prompt with arguments %v", name, args)},
+	}, nil
+}
+
+func (s *Server) buildPortfolioSummary() (string, error) {
+	ctx := context.Background()
+	positions, err := s.exchange.ListPositions(ctx)
+	if err != nil {
+		return "", fmt.Errorf("list positions: %w", err)
+	}
+	balances, err := s.exchange.ListBalances(ctx)
+	if err != nil {
+		return "", fmt.Errorf("list balances: %w", err)
+	}
+
+	summary := map[string]any{
+		"balances":  balances,
+		"positions": positions,
+	}
+	data, err := json.Marshal(summary)
+	if err != nil {
+		return "", fmt.Errorf("marshal summary: %w", err)
+	}
+	return string(data), nil
+}

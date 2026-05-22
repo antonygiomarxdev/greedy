@@ -63,5 +63,43 @@ func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
 }
 
 func StatusCommand(ctx context.Context, logger *slog.Logger) {
-	fmt.Println("status: not yet implemented")
+	dataDir := os.Getenv("GREEDY_HOME")
+	if dataDir == "" {
+		home, _ := os.UserHomeDir()
+		dataDir = home + "/.greedy"
+	}
+
+	database, err := db.Open(dataDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close(database)
+
+	repo := db.NewBotRepository(database)
+	bots, err := repo.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error listing bots: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(bots) == 0 {
+		fmt.Println("No bots found.")
+		return
+	}
+
+	fmt.Printf("%-24s %-12s %-10s %-10s %-20s\n", "ID", "NAME", "STRATEGY", "SYMBOL", "STATUS")
+	fmt.Println("-----------------------------------------------------------------------------")
+	for _, b := range bots {
+		fmt.Printf("%-24s %-12s %-10s %-10s %-20s\n",
+			b.ID, truncate(b.Name, 12), b.Strategy, b.Symbol, b.Status,
+		)
+	}
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max-1] + "…"
 }

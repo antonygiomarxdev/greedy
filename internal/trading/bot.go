@@ -277,6 +277,11 @@ func (b *Bot) tick(ctx context.Context) error {
 	NotifyOrderConfirmer(b.Strategy, signal.Price, order.ID)
 	if order.Status == shared.StatusFilled || order.Status == shared.StatusPartiallyFilled {
 		NotifyOrderFilled(b.Strategy, signal.Price)
+		if b.idempotency != nil {
+			if err := b.idempotency.Confirm(ctx, req.ClientOrderID, order.ID); err != nil {
+				b.logger.Warn("idempotency confirm failed", "clientOrderID", req.ClientOrderID, "error", err)
+			}
+		}
 	}
 
 	return nil
