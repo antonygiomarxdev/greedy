@@ -149,9 +149,13 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 		}
 
 		var pnl float64
+		fillPrice := order.Price
+		if fillPrice == 0 {
+			fillPrice = candle.Close
+		}
 		if order.FilledQuantity > 0 {
 			if side == shared.SideSell && position != nil && position.AvgEntryPrice > 0 {
-				pnl = (candle.Close - position.AvgEntryPrice) * order.FilledQuantity
+				pnl = (fillPrice - position.AvgEntryPrice) * order.FilledQuantity
 			}
 		}
 
@@ -159,7 +163,7 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 			Timestamp: candle.Timestamp,
 			Symbol:    candle.Symbol,
 			Side:      string(side),
-			Price:     candle.Close,
+			Price:     fillPrice,
 			Quantity:  order.FilledQuantity,
 			PnL:       pnl,
 		})
