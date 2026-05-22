@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Greedy installer — single static binary, no dependencies
+# Greedy installer — single static binary, AI-native via MCP
 # Usage: curl -fsSL https://raw.githubusercontent.com/antonygiomarxdev/greedy/main/scripts/install.sh | sh
 
 REPO="antonygiomarxdev/greedy"
@@ -57,16 +57,83 @@ main() {
 	echo "greedy ${VERSION} installed to ${INSTALL_DIR}/${BINARY}"
 	echo ""
 
-	if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-		echo "Add ${INSTALL_DIR} to your PATH:"
-		echo "  export PATH=\"${INSTALL_DIR}:\$PATH\""
-		echo ""
-		echo "Or add it to your shell profile (~/.bashrc, ~/.zshrc):"
-		echo "  echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.bashrc"
-		echo ""
+	add_to_path
+	register_claude_desktop
+
+	echo "Ready. Try: greedy version"
+}
+
+add_to_path() {
+	if echo "$PATH" | grep -q "$INSTALL_DIR"; then
+		return
 	fi
 
-	echo "Run: greedy version"
+	SHELL_PROFILE=""
+	case "$SHELL" in
+		*/zsh) SHELL_PROFILE="${HOME}/.zshrc" ;;
+		*/bash) SHELL_PROFILE="${HOME}/.bashrc" ;;
+		*/fish) SHELL_PROFILE="${HOME}/.config/fish/config.fish" ;;
+	esac
+
+	if [ -n "$SHELL_PROFILE" ]; then
+		echo "export PATH=\"${INSTALL_DIR}:\$PATH\"" >> "$SHELL_PROFILE"
+		echo "Added ${INSTALL_DIR} to PATH in ${SHELL_PROFILE}"
+		export PATH="${INSTALL_DIR}:$PATH"
+	else
+		echo "Add ${INSTALL_DIR} to your PATH manually"
+	fi
+}
+
+register_claude_desktop() {
+	CLAUDE_CONFIG=""
+	if [ "$(uname -s)" = "Darwin" ]; then
+		CLAUDE_CONFIG="${HOME}/Library/Application Support/Claude/claude_desktop_config.json"
+	else
+		CLAUDE_CONFIG="${HOME}/.config/Claude/claude_desktop_config.json"
+	fi
+
+	if [ ! -f "$CLAUDE_CONFIG" ]; then
+		echo "Claude Desktop config not found at ${CLAUDE_CONFIG} — skipping MCP registration"
+		echo "To connect greedy to Claude manually, add this to your claude_desktop_config.json:"
+		echo ""
+		echo '  "mcpServers": {'
+		echo '    "greedy": {'
+		echo "      \"command\": \"${INSTALL_DIR}/${BINARY}\","
+		echo '      "args": ["mcp-serve"]'
+		echo '    }'
+		echo '  }'
+		echo ""
+		return
+	fi
+
+	if grep -q '"greedy"' "$CLAUDE_CONFIG"; then
+		echo "greedy already registered in Claude Desktop config"
+		return
+	fi
+
+	TMPFILE=$(mktemp)
+	python3 -c "
+import json, sys
+with open('$CLAUDE_CONFIG') as f:
+    cfg = json.load(f)
+cfg.setdefault('mcpServers', {})['greedy'] = {
+    'command': '$INSTALL_DIR/$BINARY',
+    'args': ['mcp-serve']
+}
+json.dump(cfg, sys.stdout, indent=2)
+" > "$TMPFILE" 2>/dev/null && mv "$TMPFILE" "$CLAUDE_CONFIG" && echo "Registered greedy as MCP server in Claude Desktop" || {
+		rm -f "$TMPFILE"
+		echo "Could not auto-register in Claude Desktop config (python3 not found)"
+		echo "Add manually to ${CLAUDE_CONFIG}:"
+		echo ""
+		echo '  "mcpServers": {'
+		echo '    "greedy": {'
+		echo "      \"command\": \"${INSTALL_DIR}/${BINARY}\","
+		echo '      "args": ["mcp-serve"]'
+		echo '    }'
+		echo '  }'
+		echo ""
+	}
 }
 
 main "$@"
