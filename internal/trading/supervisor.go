@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
@@ -27,6 +28,7 @@ type Supervisor struct {
 	db       *sql.DB
 	policy   RestartPolicy
 	logger   *slog.Logger
+	wg       sync.WaitGroup
 }
 
 func NewSupervisor(ex shared.Exchange, database *sql.DB, policy RestartPolicy) *Supervisor {
@@ -63,7 +65,11 @@ func (s *Supervisor) StartBot(ctx context.Context, id string, cfg config.BotConf
 	s.bots[id] = bot
 	s.cancels[id] = cancel
 
-	go bot.Run(botCtx)
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		bot.Run(botCtx)
+	}()
 	s.logger.Info("bot started", "id", id, "strategy", cfg.Strategy.Type)
 	return nil
 }
@@ -136,4 +142,37 @@ func (s *Supervisor) Shutdown() {
 		delete(s.bots, id)
 	}
 	s.logger.Info("supervisor shutdown complete")
+}
+
+func (s *Supervisor) ShutdownCtx(ctx context.Context) error {
+	s.mu.Lock()
+	for id, cancel := range s.cancels {
+		cancel()
+		delete(s.cancels, id)
+		delete(s.bots, id)
+	}
+	s.mu.Unlock()
+
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	timeout := 30 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = time.Until(deadline)
+	}
+
+	select {
+	case <-done:
+		s.logger.Info("supervisor shutdown complete")
+		return nil
+	case <-time.After(timeout):
+		s.logger.Warn("supervisor shutdown timed out waiting for bots")
+		return fmt.Errorf("shutdown timed out after %v", timeout)
+	case <-ctx.Done():
+		s.logger.Warn("supervisor shutdown cancelled")
+		return ctx.Err()
+	}
 }

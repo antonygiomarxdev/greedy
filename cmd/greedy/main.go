@@ -18,6 +18,9 @@ import (
 type commandHandler func(ctx context.Context, logger *slog.Logger, args []string)
 
 var commands = map[string]commandHandler{
+	"serve": func(ctx context.Context, logger *slog.Logger, args []string) {
+		tradingdelivery.ServeCommand(ctx, logger, args)
+	},
 	"run": func(ctx context.Context, logger *slog.Logger, args []string) {
 		fset := flag.NewFlagSet("run", flag.ExitOnError)
 		stratFile := fset.String("strategy", "", "strategy YAML file to run")
@@ -54,10 +57,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, `Greedy - Sovereign Algorithmic Trading Engine
 
 Usage:
-  greedy run --strategy <file>        Run a trading strategy
+  greedy serve --config <file>         Run daemon with multi-bot config and MCP
+  greedy serve --strategy <file>       Run single strategy as daemon
+  greedy run --strategy <file>         Run a single strategy (legacy)
   greedy backtest --strategy <file> --data <csv>   Run backtest
   greedy status                       Show active bots
-  greedy mcp-serve                    Start MCP server (stdio)
+  greedy mcp-serve                    Start MCP server standalone (legacy)
   greedy version                      Print version
 
 `)

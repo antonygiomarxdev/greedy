@@ -385,3 +385,34 @@ func (pe *PaperExchange) updatePosition(symbol string, side shared.OrderSide, pr
 func round2(v float64) float64 {
 	return math.Round(v*100) / 100
 }
+
+func (pe *PaperExchange) Snapshot() ([]shared.Balance, []shared.Position) {
+	pe.mu.RLock()
+	defer pe.mu.RUnlock()
+
+	balances := make([]shared.Balance, 0, len(pe.balances))
+	for asset, free := range pe.balances {
+		balances = append(balances, shared.Balance{Asset: asset, Free: free, Total: free})
+	}
+
+	positions := make([]shared.Position, 0, len(pe.positions))
+	for _, p := range pe.positions {
+		positions = append(positions, *p)
+	}
+
+	return balances, positions
+}
+
+func (pe *PaperExchange) Restore(balances []shared.Balance, positions []shared.Position) {
+	pe.mu.Lock()
+	defer pe.mu.Unlock()
+
+	for _, b := range balances {
+		pe.balances[b.Asset] = b.Free
+	}
+
+	for _, p := range positions {
+		cp := p
+		pe.positions[p.Symbol] = &cp
+	}
+}

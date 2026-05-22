@@ -14,6 +14,7 @@ const (
 
 	DefaultRandomWalkDrift      = 0.1
 	DefaultRandomWalkVolatility = 0.3
+	DefaultShutdownTimeout      = 30 * time.Second
 
 	DefaultSymbol = "BTC-USD"
 	DefaultQuote  = "USD"
