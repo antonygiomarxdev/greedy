@@ -9,6 +9,7 @@ import (
 )
 
 func LoadCSV(path string, symbol string) ([]Candle, error) {
+	/* #nosec G304 — path is user-provided CLI argument for backtesting */
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open csv: %w", err)
@@ -21,7 +22,7 @@ func LoadCSV(path string, symbol string) ([]Candle, error) {
 		return nil, fmt.Errorf("read csv: %w", err)
 	}
 
-	var candles []Candle
+	candles := make([]Candle, 0, len(records)-1)
 	for i, rec := range records {
 		if i == 0 {
 			continue

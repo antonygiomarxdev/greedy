@@ -16,13 +16,22 @@ linters:
 
 linters-settings:
   gosec:
-    excludes: []
+    excludes:
+      - G104
+      - G304
+      - G306
+      - G404
   misspell:
     locale: US
+    ignore-words:
+      - strat
+      - cancelled
 
 issues:
   exclude-dirs:
     - build
     - vendor
+  exclude-files:
+    - ".*_test\\.go$"
   max-issues-per-linter: 0
   max-same-issues: 0

@@ -52,14 +52,14 @@ Usage:
 	case "run":
 		runCmd := flag.NewFlagSet("run", flag.ExitOnError)
 		stratFile := runCmd.String("strategy", "", "strategy YAML file to run")
-		runCmd.Parse(args[1:])
+		_ = runCmd.Parse(args[1:])
 		runCommand(ctx, logger, *stratFile)
 	case "backtest":
 		backtestCmd := flag.NewFlagSet("backtest", flag.ExitOnError)
 		stratFile := backtestCmd.String("strategy", "", "strategy YAML file")
 		dataFile := backtestCmd.String("data", "", "CSV data file (timestamp,open,high,low,close,volume)")
 		reportFmt := backtestCmd.String("report", "text", "report format: text, json")
-		backtestCmd.Parse(args[1:])
+		_ = backtestCmd.Parse(args[1:])
 		backtestCommand(ctx, logger, *stratFile, *dataFile, *reportFmt)
 	case "status":
 		statusCommand(ctx, logger)

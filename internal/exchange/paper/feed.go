@@ -65,6 +65,7 @@ func NewRandomWalkFeed(symbol string, startPrice, drift, vol float64, tick time.
 }
 
 func NewCSVReplayFeed(symbol, csvPath string) (*PriceFeed, error) {
+	/* #nosec G304 — csvPath is user-provided for backtesting */
 	f, err := os.Open(csvPath)
 	if err != nil {
 		return nil, fmt.Errorf("open csv: %w", err)
@@ -77,7 +78,7 @@ func NewCSVReplayFeed(symbol, csvPath string) (*PriceFeed, error) {
 		return nil, fmt.Errorf("read csv: %w", err)
 	}
 
-	var rows []CandleRow
+	rows := make([]CandleRow, 0, len(records)-1)
 	for i, rec := range records {
 		if i == 0 { // skip header
 			continue

@@ -30,23 +30,6 @@ type jsonRPCError struct {
 	Message string `json:"message"`
 }
 
-type jsonRPCNotification struct {
-	JSONRPC string      `json:"jsonrpc"`
-	Method  string      `json:"method"`
-	Params  interface{} `json:"params,omitempty"`
-}
-
-type initParams struct {
-	ProtocolVersion string      `json:"protocolVersion"`
-	Capabilities    interface{} `json:"capabilities"`
-	ClientInfo      clientInfo  `json:"clientInfo"`
-}
-
-type clientInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
-
 type initResult struct {
 	ProtocolVersion string             `json:"protocolVersion"`
 	ServerInfo      serverInfo         `json:"serverInfo"`

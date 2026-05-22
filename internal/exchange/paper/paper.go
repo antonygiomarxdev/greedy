@@ -232,14 +232,14 @@ func (pe *PaperExchange) PlaceOrder(ctx context.Context, req exchange.OrderReque
 		}
 	}
 
-	pe.mu.Lock()
-	pe.orders[orderID] = order
-	pe.mu.Unlock()
-
 	fills, err := book.PlaceOrder(order)
 	if err != nil {
 		return nil, err
 	}
+
+	pe.mu.Lock()
+	pe.orders[orderID] = order
+	pe.mu.Unlock()
 
 	if len(fills) > 0 {
 		for _, f := range fills {
@@ -280,13 +280,17 @@ func (pe *PaperExchange) GetOrder(ctx context.Context, orderID string) (*exchang
 
 func (pe *PaperExchange) ListOpenOrders(ctx context.Context, symbol string) ([]exchange.Order, error) {
 	pe.mu.RLock()
-	defer pe.mu.RUnlock()
+	ordersCopy := make([]exchange.Order, 0, len(pe.orders))
+	for _, o := range pe.orders {
+		ordersCopy = append(ordersCopy, *o)
+	}
+	pe.mu.RUnlock()
 
 	var orders []exchange.Order
-	for _, o := range pe.orders {
+	for _, o := range ordersCopy {
 		if o.Status == exchange.StatusOpen || o.Status == exchange.StatusPartiallyFilled {
 			if symbol == "" || o.Symbol == symbol {
-				orders = append(orders, *o)
+				orders = append(orders, o)
 			}
 		}
 	}
@@ -312,7 +316,7 @@ func (pe *PaperExchange) ListBalances(ctx context.Context) ([]exchange.Balance, 
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
-	var bals []exchange.Balance
+	bals := make([]exchange.Balance, 0, len(pe.balances))
 	for asset, free := range pe.balances {
 		bals = append(bals, exchange.Balance{Asset: asset, Free: free, Total: free})
 	}
@@ -335,7 +339,7 @@ func (pe *PaperExchange) ListPositions(ctx context.Context) ([]exchange.Position
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
-	var pos []exchange.Position
+	pos := make([]exchange.Position, 0, len(pe.positions))
 	for _, p := range pe.positions {
 		pos = append(pos, *p)
 	}

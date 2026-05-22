@@ -9,6 +9,7 @@ import (
 )
 
 func Load(path string) (*RootConfig, error) {
+	/* #nosec G304 — path is user-provided CLI argument */
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -31,6 +32,7 @@ func Load(path string) (*RootConfig, error) {
 }
 
 func LoadStrategyFile(path string) (*BotConfig, error) {
+	/* #nosec G304 — path is user-provided via CLI or MCP */
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read strategy file: %w", err)

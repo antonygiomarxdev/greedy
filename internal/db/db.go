@@ -12,7 +12,7 @@ import (
 const pragmas = "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)"
 
 func Open(dataDir string) (*sql.DB, error) {
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0750); err != nil {
 		return nil, fmt.Errorf("create data dir: %w", err)
 	}
 
@@ -25,7 +25,7 @@ func Open(dataDir string) (*sql.DB, error) {
 	db.SetMaxOpenConns(1)
 
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
 

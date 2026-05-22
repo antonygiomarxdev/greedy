@@ -116,7 +116,9 @@ func (b *Bot) Run(ctx context.Context) {
 	// Transition: STARTING → RUNNING
 	b.setStatus(StatusRunning)
 	if b.repo != nil {
-		b.repo.UpdateStatus(b.ID, string(StatusRunning))
+		if err := b.repo.UpdateStatus(b.ID, string(StatusRunning)); err != nil {
+			b.logger.Warn("failed to update bot status", "error", err)
+		}
 	}
 	b.logger.Info("bot running")
 
@@ -131,7 +133,9 @@ func (b *Bot) Run(ctx context.Context) {
 			b.setStatus(StatusStopping)
 			b.cancelAllOrders()
 			if b.repo != nil {
-				b.repo.UpdateStatus(b.ID, string(StatusStopped))
+				if err := b.repo.UpdateStatus(b.ID, string(StatusStopped)); err != nil {
+					b.logger.Warn("failed to update bot status on stop", "error", err)
+				}
 			}
 			b.setStatus(StatusStopped)
 			return
