@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+export PATH="/home/ksante/goroot/bin:/home/ksante/go/bin:$PATH"
+
+echo "=== pre-push: running full CI checks ==="
+
+# Tests with race detection
+echo "→ go test -race..."
+go test -race -count=1 -timeout=120s ./...
+
+# Security
+if command -v gosec &>/dev/null; then
+  echo "→ gosec..."
+  gosec ./...
+else
+  echo "⚠  gosec not installed — skipping"
+fi
+
+echo "✅ pre-push passed"

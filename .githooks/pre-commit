@@ -1,0 +1,41 @@
+#!/bin/bash
+set -euo pipefail
+
+export PATH="/home/ksante/goroot/bin:/home/ksante/go/bin:$PATH"
+
+echo "=== pre-commit: checking staged files ==="
+
+# gofmt
+echo "→ gofmt..."
+UNFORMATTED=$(gofmt -l .)
+if [ -n "$UNFORMATTED" ]; then
+  echo "ERROR: unformatted files:"
+  echo "$UNFORMATTED"
+  exit 1
+fi
+
+# go mod tidy
+echo "→ go mod tidy..."
+go mod tidy
+if ! git diff --exit-code go.mod go.sum >/dev/null 2>&1; then
+  echo "ERROR: go.mod/go.sum out of sync. Run 'go mod tidy'."
+  exit 1
+fi
+
+# go vet
+echo "→ go vet..."
+go vet ./...
+
+# go build
+echo "→ go build..."
+go build ./...
+
+# golangci-lint (only if available)
+if command -v golangci-lint &>/dev/null; then
+  echo "→ golangci-lint..."
+  golangci-lint run --timeout=2m
+else
+  echo "⚠  golangci-lint not installed — skipping"
+fi
+
+echo "✅ pre-commit passed"
