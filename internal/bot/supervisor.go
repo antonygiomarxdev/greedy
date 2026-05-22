@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/antonygiomarxdev/greedy/internal/config"
-	"github.com/antonygiomarxdev/greedy/internal/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 )
 
 type RestartPolicy int

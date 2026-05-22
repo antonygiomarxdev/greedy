@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 )
 
 func TestPaperExchange_New(t *testing.T) {

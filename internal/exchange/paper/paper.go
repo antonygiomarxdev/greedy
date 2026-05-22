@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 )
 
 type PaperExchange struct {

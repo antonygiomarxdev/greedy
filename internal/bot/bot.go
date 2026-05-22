@@ -10,7 +10,7 @@ import (
 
 	"github.com/antonygiomarxdev/greedy/internal/config"
 	"github.com/antonygiomarxdev/greedy/internal/db"
-	"github.com/antonygiomarxdev/greedy/internal/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 )
 
 type Status string

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 )
 
 type OrderBook struct {
