@@ -8,7 +8,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/debouncer"
+	"github.com/antonygiomarxdev/greedy/internal/idempotency"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/markettracker"
+	"github.com/antonygiomarxdev/greedy/internal/pricestreamer"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
@@ -29,6 +33,22 @@ type Supervisor struct {
 	policy   RestartPolicy
 	logger   *slog.Logger
 	wg       sync.WaitGroup
+
+	streamer    pricestreamer.PriceStreamer
+	tracker     markettracker.MarketTracker
+	idempotency idempotency.Store
+}
+
+func (s *Supervisor) SetStreamer(streamer pricestreamer.PriceStreamer) {
+	s.streamer = streamer
+}
+
+func (s *Supervisor) SetTracker(tracker markettracker.MarketTracker) {
+	s.tracker = tracker
+}
+
+func (s *Supervisor) SetIdempotency(store idempotency.Store) {
+	s.idempotency = store
 }
 
 func NewSupervisor(ex shared.Exchange, database *sql.DB, policy RestartPolicy) *Supervisor {
@@ -62,6 +82,10 @@ func (s *Supervisor) StartBot(ctx context.Context, id string, cfg config.BotConf
 	botCtx, cancel := context.WithCancel(ctx) // #nosec G118 — cancel is stored and called in Shutdown
 
 	bot := New(id, cfg.Name, cfg, s.exchange, strat, s.db)
+	bot.streamer = s.streamer
+	bot.tracker = s.tracker
+	bot.debouncer = debouncer.New(5*time.Second, 10, 30*time.Second)
+	bot.idempotency = s.idempotency
 	s.bots[id] = bot
 	s.cancels[id] = cancel
 

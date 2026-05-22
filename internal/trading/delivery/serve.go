@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/idempotency"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/kernel"
+	"github.com/antonygiomarxdev/greedy/internal/markettracker"
 	"github.com/antonygiomarxdev/greedy/internal/mcp"
+	"github.com/antonygiomarxdev/greedy/internal/pricestore"
+	"github.com/antonygiomarxdev/greedy/internal/pricestreamer"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
@@ -108,7 +113,41 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 
 	exchange.StartFeeds(ctx)
 
+	priceStore := pricestore.NewSQLitePriceStore(database)
+	streamer := pricestreamer.New(exchange)
+	streamer.SetPriceStore(priceStore)
+
+	tracker := markettracker.New(markettracker.BreakerConfig{
+		MaxPriceDeltaPct: 5.0,
+		WindowDuration:   30 * time.Second,
+		CooldownDuration: 60 * time.Second,
+	})
+
+	streamer.OnTick(func(symbol string, price float64, ts time.Time) {
+		tracker.Record(symbol, price, ts)
+	})
+
+	for _, bot := range cfg.Bootstrap {
+		sym := bot.Strategy.Symbol
+		if err := streamer.Register(ctx, sym, 100*time.Millisecond); err != nil {
+			logger.Error("streamer register failed", "symbol", sym, "error", err)
+		}
+	}
+
+	symbols := make([]string, 0, len(cfg.Bootstrap))
+	for _, bot := range cfg.Bootstrap {
+		symbols = append(symbols, bot.Strategy.Symbol)
+	}
+	if err := tracker.Restore(ctx, symbols, priceStore); err != nil {
+		logger.Warn("market tracker restore failed", "error", err)
+	}
+
+	idempotencyStore := idempotency.NewSQLiteStore(database)
+
 	supervisor := trading.NewSupervisor(exchange, database, trading.RestartNever)
+	supervisor.SetStreamer(streamer)
+	supervisor.SetTracker(tracker)
+	supervisor.SetIdempotency(idempotencyStore)
 
 	for _, botCfg := range cfg.Bootstrap {
 		botCfg := botCfg

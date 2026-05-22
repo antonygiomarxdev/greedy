@@ -8,8 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/debouncer"
+	"github.com/antonygiomarxdev/greedy/internal/idempotency"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
+	"github.com/antonygiomarxdev/greedy/internal/markettracker"
+	"github.com/antonygiomarxdev/greedy/internal/pricestreamer"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
@@ -30,8 +34,14 @@ type Bot struct {
 	Config   config.BotConfig
 	Exchange shared.Exchange
 	Strategy Strategy
-	DB       *sql.DB // for persistence
+	DB       *sql.DB
 	repo     *db.BotRepository
+
+	streamer    pricestreamer.PriceStreamer
+	tracker     markettracker.MarketTracker
+	debouncer   debouncer.Debouncer
+	idempotency idempotency.Store
+	seq         uint64
 
 	mu     sync.RWMutex
 	status Status
@@ -159,9 +169,30 @@ func (b *Bot) tick(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	ticker, err := b.Exchange.GetTicker(ctx, b.Config.Strategy.Symbol)
-	if err != nil {
-		return fmt.Errorf("get ticker: %w", err)
+	var price float64
+	var ts time.Time
+
+	if b.streamer != nil {
+		cached, ok := b.streamer.GetCached(b.Config.Strategy.Symbol)
+		if !ok {
+			return fmt.Errorf("symbol %s not registered in streamer", b.Config.Strategy.Symbol)
+		}
+		if cached.Stale {
+			return fmt.Errorf("stale price for %s", b.Config.Strategy.Symbol)
+		}
+		price = cached.Price
+		ts = cached.Timestamp
+	} else {
+		ticker, err := b.Exchange.GetTicker(ctx, b.Config.Strategy.Symbol)
+		if err != nil {
+			return fmt.Errorf("get ticker: %w", err)
+		}
+		price = ticker.Price
+		ts = ticker.Time
+	}
+
+	if b.tracker != nil && b.tracker.IsBreakerActive(b.Config.Strategy.Symbol) {
+		return nil
 	}
 
 	position, err := b.Exchange.GetPosition(ctx, b.Config.Strategy.Symbol)
@@ -177,6 +208,12 @@ func (b *Bot) tick(ctx context.Context) error {
 	openOrders, err := b.Exchange.ListOpenOrders(ctx, b.Config.Strategy.Symbol)
 	if err != nil {
 		return fmt.Errorf("list open orders: %w", err)
+	}
+
+	ticker := &shared.Ticker{
+		Symbol: b.Config.Strategy.Symbol,
+		Price:  price,
+		Time:   ts,
 	}
 
 	state := &BotState{
@@ -196,21 +233,37 @@ func (b *Bot) tick(ctx context.Context) error {
 		return nil
 	}
 
+	if b.debouncer != nil && !b.debouncer.CanExecute() {
+		return nil
+	}
+
 	req := shared.OrderRequest{
-		ClientOrderID: fmt.Sprintf("%s-%d", b.ID, time.Now().UnixNano()),
-		Symbol:        signal.Symbol,
-		Side:          shared.SideBuy,
-		Type:          signal.Type,
-		Quantity:      signal.Quantity,
-		Price:         signal.Price,
+		Symbol:   signal.Symbol,
+		Side:     shared.SideBuy,
+		Type:     signal.Type,
+		Quantity: signal.Quantity,
+		Price:    signal.Price,
 	}
 	if signal.Action == ActionSell {
 		req.Side = shared.SideSell
 	}
 
+	b.seq++
+	req.ClientOrderID = fmt.Sprintf("%s-%d-%04d", b.ID, time.Now().UnixMilli(), b.seq)
+
+	if b.idempotency != nil {
+		if err := b.idempotency.Reserve(ctx, req.ClientOrderID, b.ID, b.Config.Strategy.Symbol); err != nil {
+			return fmt.Errorf("idempotency reserve: %w", err)
+		}
+	}
+
 	order, err := b.Exchange.PlaceOrder(ctx, req)
 	if err != nil {
 		return fmt.Errorf("place order: %w", err)
+	}
+
+	if b.debouncer != nil {
+		b.debouncer.RecordExecution()
 	}
 
 	b.logger.Info("order placed",
@@ -221,10 +274,7 @@ func (b *Bot) tick(ctx context.Context) error {
 		"status", order.Status,
 	)
 
-	// Notify strategy of order confirmation (GRID needs this)
 	NotifyOrderConfirmer(b.Strategy, signal.Price, order.ID)
-
-	// If filled immediately, notify strategy
 	if order.Status == shared.StatusFilled || order.Status == shared.StatusPartiallyFilled {
 		NotifyOrderFilled(b.Strategy, signal.Price)
 	}
