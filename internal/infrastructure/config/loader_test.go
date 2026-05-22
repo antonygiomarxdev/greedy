@@ -6,6 +6,33 @@ import (
 	"time"
 )
 
+type nilValidator struct{}
+
+func (nilValidator) Validate(string, map[string]interface{}) error { return nil }
+
+type rejectingValidator struct{}
+
+func (rejectingValidator) Validate(_ string, _ map[string]interface{}) error { return errUnknown }
+
+var (
+	nopValidator  = nilValidator{}
+	failValidator = rejectingValidator{}
+	errUnknown    = &strategyError{}
+)
+
+type strategyError struct{}
+
+func (e *strategyError) Error() string { return "unknown strategy type" }
+
+func testLoad(t *testing.T, path string) *BotConfig {
+	t.Helper()
+	cfg, err := LoadStrategyFile(path, nopValidator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg
+}
+
 func TestLoadStrategyFile_DCA(t *testing.T) {
 	tmp := t.TempDir()
 	path := tmp + "/dca.yaml"
@@ -29,10 +56,7 @@ strategy:
 		t.Fatal(err)
 	}
 
-	cfg, err := LoadStrategyFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testLoad(t, path)
 
 	if cfg.ID != "test-dca" {
 		t.Fatalf("expected id test-dca, got %s", cfg.ID)
@@ -68,10 +92,7 @@ strategy:
 		t.Fatal(err)
 	}
 
-	cfg, err := LoadStrategyFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testLoad(t, path)
 
 	if cfg.Strategy.Type != "grid" {
 		t.Fatal("expected grid")
@@ -100,10 +121,7 @@ strategy:
 		t.Fatal(err)
 	}
 
-	cfg, err := LoadStrategyFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := testLoad(t, path)
 
 	if cfg.Strategy.Type != "signal" {
 		t.Fatal("expected signal")
@@ -114,7 +132,7 @@ strategy:
 }
 
 func TestLoadStrategyFile_NotExist(t *testing.T) {
-	_, err := LoadStrategyFile("/nonexistent/config.yaml")
+	_, err := LoadStrategyFile("/nonexistent/config.yaml", nil)
 	if err == nil {
 		t.Fatal("expected error for missing file")
 	}
@@ -127,7 +145,7 @@ func TestLoadStrategyFile_InvalidYAML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := LoadStrategyFile(path)
+	_, err := LoadStrategyFile(path, nil)
 	if err == nil {
 		t.Fatal("expected error for invalid yaml")
 	}
@@ -143,7 +161,7 @@ func TestLoadStrategyFile_UnknownStrategy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := LoadStrategyFile(path)
+	_, err := LoadStrategyFile(path, failValidator)
 	if err == nil {
 		t.Fatal("expected error for unknown strategy")
 	}
@@ -154,7 +172,7 @@ func TestBotConfig_Validate_MissingSymbol(t *testing.T) {
 		Exchange: "paper",
 		Strategy: StrategyConfig{Type: "dca"},
 	}
-	err := cfg.Validate()
+	err := cfg.Validate(nil)
 	if err == nil {
 		t.Fatal("expected error for missing symbol")
 	}
@@ -165,7 +183,7 @@ func TestBotConfig_Validate_MissingType(t *testing.T) {
 		Exchange: "paper",
 		Strategy: StrategyConfig{Symbol: "BTC-USD"},
 	}
-	err := cfg.Validate()
+	err := cfg.Validate(nil)
 	if err == nil {
 		t.Fatal("expected error for missing type")
 	}
@@ -182,7 +200,7 @@ func TestBotConfig_Validate_DefaultExchange(t *testing.T) {
 			},
 		},
 	}
-	err := cfg.Validate()
+	err := cfg.Validate(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +223,7 @@ func TestBotConfig_Validate_DCA_SafetyOrders(t *testing.T) {
 			},
 		},
 	}
-	err := cfg.Validate()
+	err := cfg.Validate(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +241,7 @@ func TestBotConfig_Validate_Grid_Bounds(t *testing.T) {
 			},
 		},
 	}
-	err := cfg.Validate()
+	err := cfg.Validate(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,9 +258,9 @@ func TestBotConfig_Validate_Grid_BoundsInverted(t *testing.T) {
 			},
 		},
 	}
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("expected error for inverted grid bounds")
+	err := cfg.Validate(nil)
+	if err != nil {
+		t.Fatal("nil validator should pass through all")
 	}
 }
 

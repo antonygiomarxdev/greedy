@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/antonygiomarxdev/greedy/internal/bot"
+	"github.com/antonygiomarxdev/greedy/internal/bot/strategy"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
 )
 
@@ -17,7 +18,9 @@ func setupServer(t *testing.T) (*Server, context.Context) {
 	ex.SeedLiquidity("BTC-USD", 10, 100)
 
 	sup := bot.NewSupervisor(ex, nil, bot.RestartNever)
-	srv := NewServer(ex, sup, nil)
+	reg := strategy.NewRegistry()
+	strategy.RegisterAll(reg)
+	srv := NewServer(ex, sup, nil, reg)
 	ctx := context.Background()
 
 	return srv, ctx
@@ -35,8 +38,7 @@ func TestListTools(t *testing.T) {
 		names[tool.Name] = true
 	}
 
-	required := []string{"get_ticker", "get_order_book", "get_candles", "place_order",
-		"cancel_order", "get_positions", "get_balances", "start_bot", "stop_bot", "list_bots"}
+	required := []string{"add_market", "cancel_order", "get_balances", "get_bot_status", "get_candles", "get_order_book", "get_positions", "get_ticker", "list_bots", "place_order", "start_bot", "stop_bot"}
 	for _, name := range required {
 		if !names[name] {
 			t.Fatalf("missing tool: %s", name)

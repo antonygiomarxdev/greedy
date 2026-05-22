@@ -162,20 +162,11 @@ func (s *Server) handleRequest(ctx context.Context, req *jsonRPCRequest, initial
 		return nil, fmt.Errorf("server not initialized")
 	}
 
-	switch req.Method {
-	case "initialize":
-		return s.handleInitialize(ctx, req)
-	case "tools/list":
-		return s.handleToolsList(ctx, req)
-	case "tools/call":
-		return s.handleToolsCall(ctx, req)
-	case "resources/list":
-		return s.handleResourcesList(ctx, req)
-	case "prompts/list":
-		return s.handlePromptsList(ctx, req)
-	default:
+	handler, ok := s.rpcHandlers[req.Method]
+	if !ok {
 		return nil, fmt.Errorf("unknown method: %s", req.Method)
 	}
+	return handler(ctx, req)
 }
 
 func (s *Server) handleInitialize(ctx context.Context, req *jsonRPCRequest) (*jsonRPCResponse, error) {

@@ -10,6 +10,10 @@
 # architecture
 - Paper trading primero con arquitectura preparada para conectar cualquier exchange real después. No implementar APIs de exchange real en fases iniciales. Confidence: 0.70
 
+# architecture
+- Paper trading primero con arquitectura preparada para conectar cualquier exchange real después. No implementar APIs de exchange real en fases iniciales. Confidence: 0.70
+- Aplicar patrones de diseño de software (GoF, enterprise patterns) combinados — ej: si usás Strategy/Factory, reemplazá los switches con magic strings por un registry/dispatch map tipado. Confidence: 0.70
+
 # testing
 - Escribe tests realistas con edge cases, no solo happy path. Confidence: 0.85
 
