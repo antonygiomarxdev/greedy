@@ -3,12 +3,12 @@ package strategy
 import (
 	"fmt"
 
-	domain "github.com/antonygiomarxdev/greedy/internal/domain/bot"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 type StrategyBuilder interface {
 	StrategyType() string
-	Build(symbol string, params map[string]interface{}) (domain.Strategy, error)
+	Build(symbol string, params map[string]interface{}) (trading.Strategy, error)
 	Validate(params map[string]interface{}) error
 }
 
@@ -24,7 +24,7 @@ func (r *Registry) Register(b StrategyBuilder) {
 	r.builders[b.StrategyType()] = b
 }
 
-func (r *Registry) Build(strategyType, symbol string, params map[string]interface{}) (domain.Strategy, error) {
+func (r *Registry) Build(strategyType, symbol string, params map[string]interface{}) (trading.Strategy, error) {
 	b, ok := r.builders[strategyType]
 	if !ok {
 		return nil, fmt.Errorf("unknown strategy type: %s", strategyType)
@@ -46,7 +46,7 @@ func Register(b StrategyBuilder) {
 	defaultRegistry.Register(b)
 }
 
-func Build(strategyType, symbol string, params map[string]interface{}) (domain.Strategy, error) {
+func Build(strategyType, symbol string, params map[string]interface{}) (trading.Strategy, error) {
 	return defaultRegistry.Build(strategyType, symbol, params)
 }
 

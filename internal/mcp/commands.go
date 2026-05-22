@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
@@ -15,47 +14,47 @@ import (
 )
 
 func init() {
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &getTickerCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &getOrderBookCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &getCandlesCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &placeOrderCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &cancelOrderCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &getPositionsCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &getBalancesCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &startBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &stopBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &listBotsCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &addMarketCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
 		return &getBotStatusCommand{sup: sup}
 	})
 }
 
 type getTickerCommand struct{ ex shared.Exchange }
 
-func (c *getTickerCommand) Name() string        { return tool.NameGetTicker }
+func (c *getTickerCommand) Name() string        { return NameGetTicker }
 func (c *getTickerCommand) Description() string { return "Get current price for a trading symbol" }
 func (c *getTickerCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}}, "required": []string{"symbol"}}
@@ -75,7 +74,7 @@ func (c *getTickerCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 
 type getOrderBookCommand struct{ ex shared.Exchange }
 
-func (c *getOrderBookCommand) Name() string        { return tool.NameGetOrderBook }
+func (c *getOrderBookCommand) Name() string        { return NameGetOrderBook }
 func (c *getOrderBookCommand) Description() string { return "Get current order book for a symbol" }
 func (c *getOrderBookCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "depth": map[string]any{"type": "integer", "default": 10}}, "required": []string{"symbol"}}
@@ -98,7 +97,7 @@ func (c *getOrderBookCommand) Execute(ctx context.Context, rawArgs json.RawMessa
 
 type getCandlesCommand struct{ ex shared.Exchange }
 
-func (c *getCandlesCommand) Name() string        { return tool.NameGetCandles }
+func (c *getCandlesCommand) Name() string        { return NameGetCandles }
 func (c *getCandlesCommand) Description() string { return "Get OHLCV candles for a symbol" }
 func (c *getCandlesCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "interval": map[string]any{"type": "string", "default": "1h"}, "limit": map[string]any{"type": "integer", "default": 24}}, "required": []string{"symbol"}}
@@ -124,7 +123,7 @@ func (c *getCandlesCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 
 type placeOrderCommand struct{ ex shared.Exchange }
 
-func (c *placeOrderCommand) Name() string { return tool.NamePlaceOrder }
+func (c *placeOrderCommand) Name() string { return NamePlaceOrder }
 func (c *placeOrderCommand) Description() string {
 	return "Place a market or limit order on the exchange"
 }
@@ -152,7 +151,7 @@ func (c *placeOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 
 type cancelOrderCommand struct{ ex shared.Exchange }
 
-func (c *cancelOrderCommand) Name() string        { return tool.NameCancelOrder }
+func (c *cancelOrderCommand) Name() string        { return NameCancelOrder }
 func (c *cancelOrderCommand) Description() string { return "Cancel an open order by ID" }
 func (c *cancelOrderCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"order_id": map[string]any{"type": "string"}}, "required": []string{"order_id"}}
@@ -171,7 +170,7 @@ func (c *cancelOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessag
 
 type getPositionsCommand struct{ ex shared.Exchange }
 
-func (c *getPositionsCommand) Name() string        { return tool.NameGetPositions }
+func (c *getPositionsCommand) Name() string        { return NameGetPositions }
 func (c *getPositionsCommand) Description() string { return "Get all current positions with P&L" }
 func (c *getPositionsCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{}}
@@ -187,7 +186,7 @@ func (c *getPositionsCommand) Execute(ctx context.Context, _ json.RawMessage) (s
 
 type getBalancesCommand struct{ ex shared.Exchange }
 
-func (c *getBalancesCommand) Name() string        { return tool.NameGetBalances }
+func (c *getBalancesCommand) Name() string        { return NameGetBalances }
 func (c *getBalancesCommand) Description() string { return "Get account balances" }
 func (c *getBalancesCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{}}
@@ -205,7 +204,7 @@ type startBotCommand struct {
 	sup *trading.Supervisor
 }
 
-func (c *startBotCommand) Name() string { return tool.NameStartBot }
+func (c *startBotCommand) Name() string { return NameStartBot }
 func (c *startBotCommand) Description() string {
 	return "Start a trading bot from a YAML strategy file"
 }
@@ -243,7 +242,7 @@ func (c *startBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) 
 
 type stopBotCommand struct{ sup *trading.Supervisor }
 
-func (c *stopBotCommand) Name() string        { return tool.NameStopBot }
+func (c *stopBotCommand) Name() string        { return NameStopBot }
 func (c *stopBotCommand) Description() string { return "Stop a running trading bot" }
 func (c *stopBotCommand) InputSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{"bot_id": map[string]any{"type": "string"}}, "required": []string{"bot_id"}}
@@ -262,7 +261,7 @@ func (c *stopBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (
 
 type listBotsCommand struct{ sup *trading.Supervisor }
 
-func (c *listBotsCommand) Name() string { return tool.NameListBots }
+func (c *listBotsCommand) Name() string { return NameListBots }
 func (c *listBotsCommand) Description() string {
 	return "List all active trading bots with status and P&L"
 }
@@ -276,7 +275,7 @@ func (c *listBotsCommand) Execute(_ context.Context, _ json.RawMessage) (string,
 
 type addMarketCommand struct{ ex shared.Exchange }
 
-func (c *addMarketCommand) Name() string { return tool.NameAddMarket }
+func (c *addMarketCommand) Name() string { return NameAddMarket }
 func (c *addMarketCommand) Description() string {
 	return "Add a new market/symbol with a simulated price feed"
 }
@@ -320,7 +319,7 @@ func (c *addMarketCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 
 type getBotStatusCommand struct{ sup *trading.Supervisor }
 
-func (c *getBotStatusCommand) Name() string { return tool.NameGetBotStatus }
+func (c *getBotStatusCommand) Name() string { return NameGetBotStatus }
 func (c *getBotStatusCommand) Description() string {
 	return "Get detailed status, P&L, and configuration of a running bot"
 }

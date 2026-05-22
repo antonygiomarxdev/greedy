@@ -1,4 +1,4 @@
-package trading
+package usecase
 
 import (
 	"context"
@@ -6,15 +6,16 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
 	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
 
 type StartBotUseCase struct {
-	supervisor *Supervisor
+	supervisor *trading.Supervisor
 	registry   *strategy.Registry
 }
 
-func NewStartBotUseCase(sup *Supervisor, reg *strategy.Registry) *StartBotUseCase {
+func NewStartBotUseCase(sup *trading.Supervisor, reg *strategy.Registry) *StartBotUseCase {
 	return &StartBotUseCase{supervisor: sup, registry: reg}
 }
 

@@ -9,7 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/antonygiomarxdev/greedy/internal/cli"
+	backtestdelivery "github.com/antonygiomarxdev/greedy/internal/backtest/delivery"
+	mcpdelivery "github.com/antonygiomarxdev/greedy/internal/mcp/delivery"
+	tradingdelivery "github.com/antonygiomarxdev/greedy/internal/trading/delivery"
 	"github.com/antonygiomarxdev/greedy/internal/version"
 )
 
@@ -23,7 +25,7 @@ var commands = map[string]commandHandler{
 			fmt.Fprintf(os.Stderr, "error parsing run flags: %v\n", err)
 			os.Exit(1)
 		}
-		cli.RunCommand(ctx, logger, *stratFile)
+		tradingdelivery.RunCommand(ctx, logger, *stratFile)
 	},
 	"backtest": func(ctx context.Context, logger *slog.Logger, args []string) {
 		fset := flag.NewFlagSet("backtest", flag.ExitOnError)
@@ -34,13 +36,13 @@ var commands = map[string]commandHandler{
 			fmt.Fprintf(os.Stderr, "error parsing backtest flags: %v\n", err)
 			os.Exit(1)
 		}
-		cli.BacktestCommand(ctx, logger, *stratFile, *dataFile, *reportFmt)
+		backtestdelivery.BacktestCommand(ctx, logger, *stratFile, *dataFile, *reportFmt)
 	},
 	"status": func(ctx context.Context, logger *slog.Logger, args []string) {
-		cli.StatusCommand(ctx, logger)
+		tradingdelivery.StatusCommand(ctx, logger)
 	},
 	"mcp-serve": func(ctx context.Context, logger *slog.Logger, args []string) {
-		cli.MCPServeCommand(ctx, logger)
+		mcpdelivery.MCPServeCommand(ctx, logger)
 	},
 	"version": func(ctx context.Context, logger *slog.Logger, args []string) {
 		fmt.Printf("greedy version %s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)

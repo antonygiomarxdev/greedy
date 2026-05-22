@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"sort"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
@@ -18,7 +17,7 @@ type Server struct {
 	supervisor  *trading.Supervisor
 	db          *sql.DB
 	logger      *slog.Logger
-	commands    map[string]tool.Command
+	commands    map[string]Command
 	rpcHandlers map[string]rpcHandlerFunc
 }
 
@@ -34,7 +33,7 @@ func NewServer(ex shared.Exchange, sup *trading.Supervisor, database *sql.DB) *S
 		supervisor:  sup,
 		db:          database,
 		logger:      slog.Default().With("component", "mcp"),
-		commands:    make(map[string]tool.Command),
+		commands:    make(map[string]Command),
 		rpcHandlers: make(map[string]rpcHandlerFunc),
 	}
 
@@ -47,7 +46,7 @@ func NewServer(ex shared.Exchange, sup *trading.Supervisor, database *sql.DB) *S
 	return s
 }
 
-func (s *Server) RegisterCommand(cmd tool.Command) {
+func (s *Server) RegisterCommand(cmd Command) {
 	s.commands[cmd.Name()] = cmd
 }
 

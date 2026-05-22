@@ -5,9 +5,9 @@ import (
 	"math"
 	"sync"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 type GRID struct {
@@ -30,13 +30,13 @@ func NewGRID(cfg config.GridConfig) *GRID {
 
 func (g *GRID) Name() string { return "grid" }
 
-func (g *GRID) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, error) {
+func (g *GRID) Evaluate(ctx context.Context, state *trading.BotState) (*trading.Signal, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	price := state.Ticker.Price
 	if price <= 0 {
-		return &bot.Signal{Action: bot.ActionHold}, nil
+		return &trading.Signal{Action: trading.ActionHold}, nil
 	}
 
 	if len(g.gridLevels) == 0 {
@@ -56,8 +56,8 @@ func (g *GRID) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, 
 		}
 
 		g.pendingOrders[level] = true
-		return &bot.Signal{
-			Action:   bot.ActionBuy,
+		return &trading.Signal{
+			Action:   trading.ActionBuy,
 			Symbol:   state.Symbol,
 			Quantity: g.cfg.OrderSize / level,
 			Price:    level,
@@ -65,7 +65,7 @@ func (g *GRID) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, 
 		}, nil
 	}
 
-	return &bot.Signal{Action: bot.ActionHold}, nil
+	return &trading.Signal{Action: trading.ActionHold}, nil
 }
 
 func (g *GRID) ConfirmOrder(price float64, orderID string) {

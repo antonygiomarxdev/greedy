@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	bot "github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func TestSignal_EntryTrigger(t *testing.T) {
@@ -17,21 +17,21 @@ func TestSignal_EntryTrigger(t *testing.T) {
 	}
 	s := NewSignal(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	// No trigger yet — should hold
 	signal, _ := s.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold without trigger, got %s", signal.Action)
 	}
 
 	// Trigger entry
 	s.Trigger("entry")
 	signal, _ = s.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionBuy {
+	if signal.Action != trading.ActionBuy {
 		t.Fatalf("expected buy after entry trigger, got %s", signal.Action)
 	}
 	if signal.Type != shared.TypeMarket {
@@ -50,7 +50,7 @@ func TestSignal_ExitTrigger(t *testing.T) {
 	}
 	s := NewSignal(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 		Position: &shared.Position{
@@ -65,7 +65,7 @@ func TestSignal_ExitTrigger(t *testing.T) {
 
 	s.Trigger("exit")
 	signal, _ := s.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionSell {
+	if signal.Action != trading.ActionSell {
 		t.Fatalf("expected sell after exit trigger, got %s", signal.Action)
 	}
 	if signal.Quantity != 0.02 {
@@ -79,14 +79,14 @@ func TestSignal_ExitWithoutPosition(t *testing.T) {
 		PositionSize: 1000,
 	})
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	s.Trigger("exit")
 	signal, _ := s.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold on exit without position, got %s", signal.Action)
 	}
 }
@@ -96,7 +96,7 @@ func TestSignal_DoubleEntryIgnored(t *testing.T) {
 		Symbol:       "BTC-USD",
 		PositionSize: 1000,
 	})
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
@@ -106,7 +106,7 @@ func TestSignal_DoubleEntryIgnored(t *testing.T) {
 
 	s.Trigger("entry")
 	signal, _ := s.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold on double entry, got %s", signal.Action)
 	}
 }
@@ -116,7 +116,7 @@ func TestSignal_EntryWithZeroPrice(t *testing.T) {
 		Symbol:       "BTC-USD",
 		PositionSize: 1000,
 	})
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 0},
 	}
@@ -126,7 +126,7 @@ func TestSignal_EntryWithZeroPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold on entry with zero price, got %s", signal.Action)
 	}
 }
@@ -136,7 +136,7 @@ func TestSignal_Reset(t *testing.T) {
 		Symbol:       "BTC-USD",
 		PositionSize: 1000,
 	})
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
@@ -149,7 +149,7 @@ func TestSignal_Reset(t *testing.T) {
 	// Should be able to enter again after reset
 	s.Trigger("entry")
 	signal, _ := s.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionBuy {
+	if signal.Action != trading.ActionBuy {
 		t.Fatalf("expected buy after reset + entry, got %s", signal.Action)
 	}
 }
@@ -178,14 +178,14 @@ func TestSignal_UnknownTrigger(t *testing.T) {
 		Symbol:       "BTC-USD",
 		PositionSize: 1000,
 	})
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	s.Trigger("unknown_trigger")
 	signal, _ := s.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold on unknown trigger, got %s", signal.Action)
 	}
 }

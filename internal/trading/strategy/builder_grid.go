@@ -1,8 +1,8 @@
 package strategy
 
 import (
-	domain "github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func init() {
@@ -13,7 +13,7 @@ type GridBuilder struct{}
 
 func (b *GridBuilder) StrategyType() string { return "grid" }
 
-func (b *GridBuilder) Build(symbol string, params map[string]interface{}) (domain.Strategy, error) {
+func (b *GridBuilder) Build(symbol string, params map[string]interface{}) (trading.Strategy, error) {
 	cfg := config.DefaultGridConfig()
 	cfg.Symbol = symbol
 

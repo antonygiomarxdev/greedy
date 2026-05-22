@@ -4,32 +4,32 @@ import (
 	"context"
 	"sync"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 type triggerHandler interface {
-	handle(s *Signal, state *bot.BotState) (*bot.Signal, error)
+	handle(s *Signal, state *trading.BotState) (*trading.Signal, error)
 }
 
 type entryTrigger struct{}
 
-func (t *entryTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, error) {
+func (t *entryTrigger) handle(s *Signal, state *trading.BotState) (*trading.Signal, error) {
 	if s.inPosition {
-		return &bot.Signal{Action: bot.ActionHold}, nil
+		return &trading.Signal{Action: trading.ActionHold}, nil
 	}
 	s.inPosition = true
 	price := state.Ticker.Price
 	if price <= 0 {
-		return &bot.Signal{Action: bot.ActionHold}, nil
+		return &trading.Signal{Action: trading.ActionHold}, nil
 	}
 	qty := s.cfg.PositionSize / price
 	if qty <= 0 {
-		return &bot.Signal{Action: bot.ActionHold}, nil
+		return &trading.Signal{Action: trading.ActionHold}, nil
 	}
-	return &bot.Signal{
-		Action:   bot.ActionBuy,
+	return &trading.Signal{
+		Action:   trading.ActionBuy,
 		Symbol:   state.Symbol,
 		Quantity: qty,
 		Type:     shared.TypeMarket,
@@ -38,16 +38,16 @@ func (t *entryTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, erro
 
 type exitTrigger struct{}
 
-func (t *exitTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, error) {
+func (t *exitTrigger) handle(s *Signal, state *trading.BotState) (*trading.Signal, error) {
 	if !s.inPosition {
-		return &bot.Signal{Action: bot.ActionHold}, nil
+		return &trading.Signal{Action: trading.ActionHold}, nil
 	}
 	s.inPosition = false
 	if state.Position == nil || state.Position.Quantity <= 0 {
-		return &bot.Signal{Action: bot.ActionHold}, nil
+		return &trading.Signal{Action: trading.ActionHold}, nil
 	}
-	return &bot.Signal{
-		Action:   bot.ActionSell,
+	return &trading.Signal{
+		Action:   trading.ActionSell,
 		Symbol:   state.Symbol,
 		Quantity: state.Position.Quantity,
 		Type:     shared.TypeMarket,
@@ -90,7 +90,7 @@ func (s *Signal) Trigger(signal string) {
 	}
 }
 
-func (s *Signal) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, error) {
+func (s *Signal) Evaluate(ctx context.Context, state *trading.BotState) (*trading.Signal, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -98,13 +98,13 @@ func (s *Signal) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal
 	case trigger := <-s.signalCh:
 		h, ok := triggerHandlers[trigger]
 		if !ok {
-			return &bot.Signal{Action: bot.ActionHold}, nil
+			return &trading.Signal{Action: trading.ActionHold}, nil
 		}
 		return h.handle(s, state)
 	default:
 	}
 
-	return &bot.Signal{Action: bot.ActionHold}, nil
+	return &trading.Signal{Action: trading.ActionHold}, nil
 }
 
 func (s *Signal) Reset() {

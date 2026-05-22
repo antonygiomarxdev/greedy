@@ -1,8 +1,8 @@
 package strategy
 
 import (
-	domain "github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func init() {
@@ -13,7 +13,7 @@ type SignalBuilder struct{}
 
 func (b *SignalBuilder) StrategyType() string { return "signal" }
 
-func (b *SignalBuilder) Build(symbol string, params map[string]interface{}) (domain.Strategy, error) {
+func (b *SignalBuilder) Build(symbol string, params map[string]interface{}) (trading.Strategy, error) {
 	cfg := config.DefaultSignalConfig()
 	cfg.Symbol = symbol
 

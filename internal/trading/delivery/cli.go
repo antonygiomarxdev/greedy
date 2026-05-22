@@ -1,4 +1,4 @@
-package cli
+package delivery
 
 import (
 	"context"
@@ -60,4 +60,8 @@ func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
 	logger.Info("shutting down...")
 	supervisor.Shutdown()
 	logger.Info("shutdown complete")
+}
+
+func StatusCommand(ctx context.Context, logger *slog.Logger) {
+	fmt.Println("status: not yet implemented")
 }

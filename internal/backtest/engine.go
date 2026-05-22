@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 type Engine struct {
 	exchange *paper.PaperExchange
-	strategy bot.Strategy
+	strategy trading.Strategy
 	cfg      config.BotConfig
 	data     []Candle
 
@@ -55,7 +55,7 @@ type Report struct {
 	EquityCurve    []EquityPoint
 }
 
-func NewEngine(strat bot.Strategy, cfg config.BotConfig, data []Candle) *Engine {
+func NewEngine(strat trading.Strategy, cfg config.BotConfig, data []Candle) *Engine {
 	ex := paper.New(0.001)
 	if len(data) > 0 {
 		ex.AddMarket(cfg.Strategy.Symbol, paper.NewStaticFeed(cfg.Strategy.Symbol, data[0].Close))
@@ -112,7 +112,7 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 		balance, _ := e.exchange.GetBalance(ctx, "USD")
 		openOrders, _ := e.exchange.ListOpenOrders(ctx, candle.Symbol)
 
-		state := &bot.BotState{
+		state := &trading.BotState{
 			Symbol:     candle.Symbol,
 			Ticker:     ticker,
 			Position:   position,
@@ -126,13 +126,13 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 			continue
 		}
 
-		if signal.Action == bot.ActionHold {
+		if signal.Action == trading.ActionHold {
 			e.recordEquity(candle.Timestamp, candle.Close, position)
 			continue
 		}
 
 		side := shared.SideBuy
-		if signal.Action == bot.ActionSell {
+		if signal.Action == trading.ActionSell {
 			side = shared.SideSell
 		}
 
@@ -164,9 +164,9 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 			PnL:       pnl,
 		})
 
-		bot.NotifyOrderConfirmer(e.strategy, signal.Price, order.ID)
+		trading.NotifyOrderConfirmer(e.strategy, signal.Price, order.ID)
 		if order.Status == shared.StatusFilled || order.Status == shared.StatusPartiallyFilled {
-			bot.NotifyOrderFilled(e.strategy, signal.Price)
+			trading.NotifyOrderFilled(e.strategy, signal.Price)
 		}
 
 		pos, _ := e.exchange.GetPosition(ctx, candle.Symbol)

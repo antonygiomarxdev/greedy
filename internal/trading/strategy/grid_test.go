@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	bot "github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func TestGRID_FirstTickBuildsGrid(t *testing.T) {
@@ -20,7 +20,7 @@ func TestGRID_FirstTickBuildsGrid(t *testing.T) {
 	}
 	g := NewGRID(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol:     "ETH-USD",
 		Ticker:     &shared.Ticker{Price: 2500},
 		OpenOrders: []shared.Order{},
@@ -32,7 +32,7 @@ func TestGRID_FirstTickBuildsGrid(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if signal.Action == bot.ActionHold {
+		if signal.Action == trading.ActionHold {
 			t.Fatalf("expected order at tick %d, got hold", i)
 		}
 		if signal.Type != shared.TypeLimit {
@@ -44,7 +44,7 @@ func TestGRID_FirstTickBuildsGrid(t *testing.T) {
 
 	// After all levels placed, should hold
 	signal, _ := g.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold after grid complete, got %s", signal.Action)
 	}
 }
@@ -83,7 +83,7 @@ func TestGRID_ReplenishAfterFill(t *testing.T) {
 	}
 	g := NewGRID(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol:     "ETH-USD",
 		Ticker:     &shared.Ticker{Price: 150},
 		OpenOrders: []shared.Order{},
@@ -97,7 +97,7 @@ func TestGRID_ReplenishAfterFill(t *testing.T) {
 
 	// Both placed
 	sig3, _ := g.Evaluate(context.Background(), state)
-	if sig3.Action != bot.ActionHold {
+	if sig3.Action != trading.ActionHold {
 		t.Fatalf("expected hold after both placed, got %s", sig3.Action)
 	}
 
@@ -106,7 +106,7 @@ func TestGRID_ReplenishAfterFill(t *testing.T) {
 
 	// Should replenish the missing level
 	sig4, _ := g.Evaluate(context.Background(), state)
-	if sig4.Action != bot.ActionBuy || sig4.Type != shared.TypeLimit {
+	if sig4.Action != trading.ActionBuy || sig4.Type != shared.TypeLimit {
 		t.Fatalf("expected replenishment order, got action=%s type=%s", sig4.Action, sig4.Type)
 	}
 }
@@ -122,7 +122,7 @@ func TestGRID_ReplenishWithOpenOrders(t *testing.T) {
 	g := NewGRID(cfg)
 
 	// Place both levels
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol:     "ETH-USD",
 		Ticker:     &shared.Ticker{Price: 150},
 		OpenOrders: []shared.Order{},
@@ -140,7 +140,7 @@ func TestGRID_ReplenishWithOpenOrders(t *testing.T) {
 
 	// All active on exchange — should hold
 	sig3, _ := g.Evaluate(context.Background(), state)
-	if sig3.Action != bot.ActionHold {
+	if sig3.Action != trading.ActionHold {
 		t.Fatalf("expected hold when all orders active, got %s", sig3.Action)
 	}
 }
@@ -153,7 +153,7 @@ func TestGRID_ZeroPrice(t *testing.T) {
 	cfg.GridLevels = 5
 	g := NewGRID(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "ETH-USD",
 		Ticker: &shared.Ticker{Price: 0},
 	}
@@ -162,7 +162,7 @@ func TestGRID_ZeroPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold on zero price, got %s", signal.Action)
 	}
 }
@@ -177,7 +177,7 @@ func TestGRID_Reset(t *testing.T) {
 	}
 	g := NewGRID(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol:     "ETH-USD",
 		Ticker:     &shared.Ticker{Price: 1500},
 		OpenOrders: []shared.Order{},
@@ -231,7 +231,7 @@ func TestGRID_ConfirmOrderClearsPending(t *testing.T) {
 	}
 	g := NewGRID(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol:     "ETH-USD",
 		Ticker:     &shared.Ticker{Price: 150},
 		OpenOrders: []shared.Order{},
@@ -258,7 +258,7 @@ func TestGRID_OrderFilledClearsAll(t *testing.T) {
 	}
 	g := NewGRID(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol:     "ETH-USD",
 		Ticker:     &shared.Ticker{Price: 150},
 		OpenOrders: []shared.Order{},

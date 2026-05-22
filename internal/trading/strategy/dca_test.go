@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	bot "github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func TestDCA_FirstBuy(t *testing.T) {
@@ -23,7 +23,7 @@ func TestDCA_FirstBuy(t *testing.T) {
 
 	dca := NewDCA(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
@@ -32,7 +32,7 @@ func TestDCA_FirstBuy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if signal.Action != bot.ActionBuy {
+	if signal.Action != trading.ActionBuy {
 		t.Fatalf("expected buy on first tick, got %s", signal.Action)
 	}
 }
@@ -50,20 +50,20 @@ func TestDCA_HoldBeforeFrequency(t *testing.T) {
 
 	dca := NewDCA(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	// First call: buy (no previous buy)
 	signal, _ := dca.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionBuy {
+	if signal.Action != trading.ActionBuy {
 		t.Fatalf("expected buy on first call, got %s", signal.Action)
 	}
 
 	// Second call immediately after: should hold (within frequency window)
 	signal, _ = dca.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold within frequency window, got %s", signal.Action)
 	}
 }
@@ -82,22 +82,22 @@ func TestDCA_SafetyOrderTriggered(t *testing.T) {
 	dca := NewDCA(cfg)
 
 	// First tick establishes initial price
-	state1 := &bot.BotState{
+	state1 := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
 	signal, _ := dca.Evaluate(context.Background(), state1)
-	if signal.Action != bot.ActionBuy {
+	if signal.Action != trading.ActionBuy {
 		t.Fatalf("expected first buy, got %s", signal.Action)
 	}
 
 	// Price drops >5% — safety order should trigger
-	stateDrop := &bot.BotState{
+	stateDrop := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 47000}, // -6%
 	}
 	signal, _ = dca.Evaluate(context.Background(), stateDrop)
-	if signal.Action != bot.ActionBuy {
+	if signal.Action != trading.ActionBuy {
 		t.Fatalf("expected safety order on drop, got %s", signal.Action)
 	}
 	// Safety order should have scaled quantity
@@ -122,7 +122,7 @@ func TestDCA_Reset(t *testing.T) {
 
 	dca := NewDCA(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 50000},
 	}
@@ -132,7 +132,7 @@ func TestDCA_Reset(t *testing.T) {
 
 	// After reset, should buy again immediately
 	signal, _ := dca.Evaluate(context.Background(), state)
-	if signal.Action != bot.ActionBuy {
+	if signal.Action != trading.ActionBuy {
 		t.Fatalf("expected buy after reset, got %s", signal.Action)
 	}
 }
@@ -142,7 +142,7 @@ func TestDCA_ZeroPrice(t *testing.T) {
 	cfg.Frequency = 1 * time.Second
 	dca := NewDCA(cfg)
 
-	state := &bot.BotState{
+	state := &trading.BotState{
 		Symbol: "BTC-USD",
 		Ticker: &shared.Ticker{Price: 0},
 	}
@@ -151,7 +151,7 @@ func TestDCA_ZeroPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if signal.Action != bot.ActionHold {
+	if signal.Action != trading.ActionHold {
 		t.Fatalf("expected hold on zero price, got %s", signal.Action)
 	}
 }

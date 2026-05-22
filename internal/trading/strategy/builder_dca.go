@@ -1,8 +1,8 @@
 package strategy
 
 import (
-	domain "github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 func init() {
@@ -13,7 +13,7 @@ type DCABuilder struct{}
 
 func (b *DCABuilder) StrategyType() string { return "dca" }
 
-func (b *DCABuilder) Build(symbol string, params map[string]interface{}) (domain.Strategy, error) {
+func (b *DCABuilder) Build(symbol string, params map[string]interface{}) (trading.Strategy, error) {
 	cfg := config.DefaultDCAConfig()
 	cfg.Symbol = symbol
 

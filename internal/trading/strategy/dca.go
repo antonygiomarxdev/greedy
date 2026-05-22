@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	trading "github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 type DCA struct {
@@ -31,13 +31,13 @@ func NewDCA(cfg config.DCAConfig) *DCA {
 
 func (d *DCA) Name() string { return "dca" }
 
-func (d *DCA) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, error) {
+func (d *DCA) Evaluate(ctx context.Context, state *trading.BotState) (*trading.Signal, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	price := state.Ticker.Price
 	if price <= 0 {
-		return &bot.Signal{Action: bot.ActionHold}, nil
+		return &trading.Signal{Action: trading.ActionHold}, nil
 	}
 
 	if d.initialPrice == 0 {
@@ -49,8 +49,8 @@ func (d *DCA) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, e
 	if time.Since(d.lastBuy) >= d.cfg.Frequency {
 		d.lastBuy = time.Now()
 		qty := d.cfg.BaseOrderSize / price
-		return &bot.Signal{
-			Action:   bot.ActionBuy,
+		return &trading.Signal{
+			Action:   trading.ActionBuy,
 			Symbol:   state.Symbol,
 			Quantity: qty,
 			Type:     shared.TypeMarket,
@@ -68,8 +68,8 @@ func (d *DCA) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, e
 		if pctChange <= triggerPct {
 			d.safetyTriggered[i] = true
 			qty := (d.cfg.BaseOrderSize * so.VolumeScale) / price
-			return &bot.Signal{
-				Action:   bot.ActionBuy,
+			return &trading.Signal{
+				Action:   trading.ActionBuy,
 				Symbol:   state.Symbol,
 				Quantity: math.Round(qty*1e8) / 1e8,
 				Type:     shared.TypeMarket,
@@ -77,7 +77,7 @@ func (d *DCA) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, e
 		}
 	}
 
-	return &bot.Signal{Action: bot.ActionHold}, nil
+	return &trading.Signal{Action: trading.ActionHold}, nil
 }
 
 func (d *DCA) Reset() {
