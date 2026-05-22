@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"os"
 
-	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
-	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/mcp"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
@@ -29,9 +29,9 @@ func MCPServeCommand(ctx context.Context, logger *slog.Logger) {
 		fmt.Fprintf(os.Stderr, "error running migrations: %v\n", err)
 		os.Exit(1)
 	}
-	exchange := paper.New(dexchange.DefaultFeeRate)
-	exchange.AddMarket(dexchange.DefaultSymbol, paper.NewRandomWalkFeed(dexchange.DefaultSymbol, dexchange.DefaultBasePrice, dexchange.DefaultRandomWalkDrift, dexchange.DefaultRandomWalkVolatility, dexchange.DefaultTickInterval))
-	exchange.SeedLiquidity(dexchange.DefaultSymbol, dexchange.DefaultLiquidityLevels, dexchange.DefaultLiquidityDepth)
+	exchange := paper.New(shared.DefaultFeeRate)
+	exchange.AddMarket(shared.DefaultSymbol, paper.NewRandomWalkFeed(shared.DefaultSymbol, shared.DefaultBasePrice, shared.DefaultRandomWalkDrift, shared.DefaultRandomWalkVolatility, shared.DefaultTickInterval))
+	exchange.SeedLiquidity(shared.DefaultSymbol, shared.DefaultLiquidityLevels, shared.DefaultLiquidityDepth)
 	exchange.StartFeeds(ctx)
 	supervisor := trading.NewSupervisor(exchange, database, trading.RestartNever)
 	server := mcp.NewServer(exchange, supervisor, database)

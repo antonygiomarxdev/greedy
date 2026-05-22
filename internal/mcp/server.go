@@ -8,13 +8,13 @@ import (
 	"log/slog"
 	"sort"
 
-	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
 type Server struct {
-	exchange    dexchange.Exchange
+	exchange    shared.Exchange
 	supervisor  *trading.Supervisor
 	db          *sql.DB
 	logger      *slog.Logger
@@ -28,7 +28,7 @@ type ToolDef struct {
 	InputSchema map[string]any `json:"inputSchema"`
 }
 
-func NewServer(ex dexchange.Exchange, sup *trading.Supervisor, database *sql.DB) *Server {
+func NewServer(ex shared.Exchange, sup *trading.Supervisor, database *sql.DB) *Server {
 	s := &Server{
 		exchange:    ex,
 		supervisor:  sup,

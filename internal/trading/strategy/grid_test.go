@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	bot "github.com/antonygiomarxdev/greedy/internal/domain/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 func TestGRID_FirstTickBuildsGrid(t *testing.T) {
@@ -22,8 +22,8 @@ func TestGRID_FirstTickBuildsGrid(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol:     "ETH-USD",
-		Ticker:     &exchange.Ticker{Price: 2500},
-		OpenOrders: []exchange.Order{},
+		Ticker:     &shared.Ticker{Price: 2500},
+		OpenOrders: []shared.Order{},
 	}
 
 	// Place all 5 grid levels
@@ -35,7 +35,7 @@ func TestGRID_FirstTickBuildsGrid(t *testing.T) {
 		if signal.Action == bot.ActionHold {
 			t.Fatalf("expected order at tick %d, got hold", i)
 		}
-		if signal.Type != exchange.TypeLimit {
+		if signal.Type != shared.TypeLimit {
 			t.Fatalf("expected limit order at tick %d, got %s", i, signal.Type)
 		}
 		// Simulate order confirmation
@@ -85,8 +85,8 @@ func TestGRID_ReplenishAfterFill(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol:     "ETH-USD",
-		Ticker:     &exchange.Ticker{Price: 150},
-		OpenOrders: []exchange.Order{},
+		Ticker:     &shared.Ticker{Price: 150},
+		OpenOrders: []shared.Order{},
 	}
 
 	// Place both levels
@@ -106,7 +106,7 @@ func TestGRID_ReplenishAfterFill(t *testing.T) {
 
 	// Should replenish the missing level
 	sig4, _ := g.Evaluate(context.Background(), state)
-	if sig4.Action != bot.ActionBuy || sig4.Type != exchange.TypeLimit {
+	if sig4.Action != bot.ActionBuy || sig4.Type != shared.TypeLimit {
 		t.Fatalf("expected replenishment order, got action=%s type=%s", sig4.Action, sig4.Type)
 	}
 }
@@ -124,8 +124,8 @@ func TestGRID_ReplenishWithOpenOrders(t *testing.T) {
 	// Place both levels
 	state := &bot.BotState{
 		Symbol:     "ETH-USD",
-		Ticker:     &exchange.Ticker{Price: 150},
-		OpenOrders: []exchange.Order{},
+		Ticker:     &shared.Ticker{Price: 150},
+		OpenOrders: []shared.Order{},
 	}
 	sig1, _ := g.Evaluate(context.Background(), state)
 	g.ConfirmOrder(sig1.Price, "order-1")
@@ -133,9 +133,9 @@ func TestGRID_ReplenishWithOpenOrders(t *testing.T) {
 	g.ConfirmOrder(sig2.Price, "order-2")
 
 	// Simulate open orders from exchange perspective
-	state.OpenOrders = []exchange.Order{
-		{ID: "order-1", Price: sig1.Price, Status: exchange.StatusOpen},
-		{ID: "order-2", Price: sig2.Price, Status: exchange.StatusOpen},
+	state.OpenOrders = []shared.Order{
+		{ID: "order-1", Price: sig1.Price, Status: shared.StatusOpen},
+		{ID: "order-2", Price: sig2.Price, Status: shared.StatusOpen},
 	}
 
 	// All active on exchange — should hold
@@ -155,7 +155,7 @@ func TestGRID_ZeroPrice(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "ETH-USD",
-		Ticker: &exchange.Ticker{Price: 0},
+		Ticker: &shared.Ticker{Price: 0},
 	}
 
 	signal, err := g.Evaluate(context.Background(), state)
@@ -179,8 +179,8 @@ func TestGRID_Reset(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol:     "ETH-USD",
-		Ticker:     &exchange.Ticker{Price: 1500},
-		OpenOrders: []exchange.Order{},
+		Ticker:     &shared.Ticker{Price: 1500},
+		OpenOrders: []shared.Order{},
 	}
 	g.Evaluate(context.Background(), state) // Build grid + first order
 
@@ -197,7 +197,7 @@ func TestGRID_Reset(t *testing.T) {
 
 	// Should rebuild grid after reset
 	signal, _ := g.Evaluate(context.Background(), state)
-	if signal.Type != exchange.TypeLimit {
+	if signal.Type != shared.TypeLimit {
 		t.Fatalf("expected grid to rebuild after reset, got %s", signal.Action)
 	}
 }
@@ -233,8 +233,8 @@ func TestGRID_ConfirmOrderClearsPending(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol:     "ETH-USD",
-		Ticker:     &exchange.Ticker{Price: 150},
-		OpenOrders: []exchange.Order{},
+		Ticker:     &shared.Ticker{Price: 150},
+		OpenOrders: []shared.Order{},
 	}
 
 	sig1, _ := g.Evaluate(context.Background(), state)
@@ -260,8 +260,8 @@ func TestGRID_OrderFilledClearsAll(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol:     "ETH-USD",
-		Ticker:     &exchange.Ticker{Price: 150},
-		OpenOrders: []exchange.Order{},
+		Ticker:     &shared.Ticker{Price: 150},
+		OpenOrders: []shared.Order{},
 	}
 
 	sig1, _ := g.Evaluate(context.Background(), state)

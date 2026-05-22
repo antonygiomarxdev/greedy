@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type Status string
@@ -28,7 +28,7 @@ type Bot struct {
 	ID       string
 	Name     string
 	Config   config.BotConfig
-	Exchange exchange.Exchange
+	Exchange shared.Exchange
 	Strategy Strategy
 	DB       *sql.DB // for persistence
 	repo     *db.BotRepository
@@ -39,7 +39,7 @@ type Bot struct {
 	logger *slog.Logger
 }
 
-func New(id, name string, cfg config.BotConfig, ex exchange.Exchange, strat Strategy, database *sql.DB) *Bot {
+func New(id, name string, cfg config.BotConfig, ex shared.Exchange, strat Strategy, database *sql.DB) *Bot {
 	b := &Bot{
 		ID:       id,
 		Name:     name,
@@ -196,16 +196,16 @@ func (b *Bot) tick(ctx context.Context) error {
 		return nil
 	}
 
-	req := exchange.OrderRequest{
+	req := shared.OrderRequest{
 		ClientOrderID: fmt.Sprintf("%s-%d", b.ID, time.Now().UnixNano()),
 		Symbol:        signal.Symbol,
-		Side:          exchange.SideBuy,
+		Side:          shared.SideBuy,
 		Type:          signal.Type,
 		Quantity:      signal.Quantity,
 		Price:         signal.Price,
 	}
 	if signal.Action == ActionSell {
-		req.Side = exchange.SideSell
+		req.Side = shared.SideSell
 	}
 
 	order, err := b.Exchange.PlaceOrder(ctx, req)
@@ -225,7 +225,7 @@ func (b *Bot) tick(ctx context.Context) error {
 	NotifyOrderConfirmer(b.Strategy, signal.Price, order.ID)
 
 	// If filled immediately, notify strategy
-	if order.Status == exchange.StatusFilled || order.Status == exchange.StatusPartiallyFilled {
+	if order.Status == shared.StatusFilled || order.Status == shared.StatusPartiallyFilled {
 		NotifyOrderFilled(b.Strategy, signal.Price)
 	}
 

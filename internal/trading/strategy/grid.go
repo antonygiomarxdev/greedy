@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type GRID struct {
@@ -61,7 +61,7 @@ func (g *GRID) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, 
 			Symbol:   state.Symbol,
 			Quantity: g.cfg.OrderSize / level,
 			Price:    level,
-			Type:     exchange.TypeLimit,
+			Type:     shared.TypeLimit,
 		}, nil
 	}
 

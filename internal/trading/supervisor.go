@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type RestartPolicy int
@@ -23,13 +23,13 @@ type Supervisor struct {
 	mu       sync.RWMutex
 	bots     map[string]*Bot
 	cancels  map[string]context.CancelFunc
-	exchange exchange.Exchange
+	exchange shared.Exchange
 	db       *sql.DB
 	policy   RestartPolicy
 	logger   *slog.Logger
 }
 
-func NewSupervisor(ex exchange.Exchange, database *sql.DB, policy RestartPolicy) *Supervisor {
+func NewSupervisor(ex shared.Exchange, database *sql.DB, policy RestartPolicy) *Supervisor {
 	return &Supervisor{
 		bots:     make(map[string]*Bot),
 		cancels:  make(map[string]context.CancelFunc),

@@ -6,34 +6,34 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type OrderBook struct {
 	mu   sync.RWMutex
-	Bids []exchange.BookLevel
-	Asks []exchange.BookLevel
+	Bids []shared.BookLevel
+	Asks []shared.BookLevel
 	Time time.Time
 }
 
 func NewOrderBook() *OrderBook {
 	return &OrderBook{
-		Bids: make([]exchange.BookLevel, 0),
-		Asks: make([]exchange.BookLevel, 0),
+		Bids: make([]shared.BookLevel, 0),
+		Asks: make([]shared.BookLevel, 0),
 		Time: time.Now(),
 	}
 }
 
-func (ob *OrderBook) Snapshot() *exchange.OrderBook {
+func (ob *OrderBook) Snapshot() *shared.OrderBook {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
 
-	bids := make([]exchange.BookLevel, len(ob.Bids))
+	bids := make([]shared.BookLevel, len(ob.Bids))
 	copy(bids, ob.Bids)
-	asks := make([]exchange.BookLevel, len(ob.Asks))
+	asks := make([]shared.BookLevel, len(ob.Asks))
 	copy(asks, ob.Asks)
 
-	return &exchange.OrderBook{
+	return &shared.OrderBook{
 		Bids: bids,
 		Asks: asks,
 		Time: ob.Time,
@@ -58,7 +58,7 @@ func (ob *OrderBook) BestAsk() float64 {
 	return ob.Asks[0].Price
 }
 
-func (ob *OrderBook) PlaceOrder(order *exchange.Order) ([]exchange.Fill, error) {
+func (ob *OrderBook) PlaceOrder(order *shared.Order) ([]shared.Fill, error) {
 	ob.mu.Lock()
 	defer ob.mu.Unlock()
 
@@ -84,10 +84,10 @@ func (ob *OrderBook) CancelOrder(orderID string) bool {
 	return false
 }
 
-type matchPredicate func(level exchange.BookLevel, limitPrice float64) bool
+type matchPredicate func(level shared.BookLevel, limitPrice float64) bool
 
-func (ob *OrderBook) matchSide(side exchange.OrderSide, order *exchange.Order, predicate matchPredicate) []exchange.Fill {
-	var fills []exchange.Fill
+func (ob *OrderBook) matchSide(side shared.OrderSide, order *shared.Order, predicate matchPredicate) []shared.Fill {
+	var fills []shared.Fill
 	remaining := order.Quantity
 
 	levels := ob.oppositeLevels(side)
@@ -97,7 +97,7 @@ func (ob *OrderBook) matchSide(side exchange.OrderSide, order *exchange.Order, p
 			break
 		}
 		fillQty := min(remaining, level.Quantity)
-		fills = append(fills, exchange.Fill{
+		fills = append(fills, shared.Fill{
 			OrderID:  order.ID,
 			Quantity: fillQty,
 			Price:    level.Price,
@@ -113,26 +113,26 @@ func (ob *OrderBook) matchSide(side exchange.OrderSide, order *exchange.Order, p
 
 	order.FilledQuantity = order.Quantity - remaining
 	if order.FilledQuantity >= order.Quantity {
-		order.Status = exchange.StatusFilled
+		order.Status = shared.StatusFilled
 	} else if order.FilledQuantity > 0 {
-		order.Status = exchange.StatusPartiallyFilled
-	} else if order.Type == exchange.TypeMarket {
-		order.Status = exchange.StatusRejected
+		order.Status = shared.StatusPartiallyFilled
+	} else if order.Type == shared.TypeMarket {
+		order.Status = shared.StatusRejected
 	}
 
 	return fills
 }
 
-func (ob *OrderBook) oppositeLevels(side exchange.OrderSide) *[]exchange.BookLevel {
-	if side == exchange.SideBuy {
+func (ob *OrderBook) oppositeLevels(side shared.OrderSide) *[]shared.BookLevel {
+	if side == shared.SideBuy {
 		return &ob.Asks
 	}
 	return &ob.Bids
 }
 
-func (ob *OrderBook) addLimitOrder(order *exchange.Order) {
-	level := exchange.BookLevel{Price: order.Price, Quantity: order.Quantity}
-	if order.Side == exchange.SideBuy {
+func (ob *OrderBook) addLimitOrder(order *shared.Order) {
+	level := shared.BookLevel{Price: order.Price, Quantity: order.Quantity}
+	if order.Side == shared.SideBuy {
 		ob.Bids = append(ob.Bids, level)
 		sort.Slice(ob.Bids, func(i, j int) bool {
 			return ob.Bids[i].Price > ob.Bids[j].Price
@@ -143,5 +143,5 @@ func (ob *OrderBook) addLimitOrder(order *exchange.Order) {
 			return ob.Asks[i].Price < ob.Asks[j].Price
 		})
 	}
-	order.Status = exchange.StatusOpen
+	order.Status = shared.StatusOpen
 }

@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type triggerHandler interface {
@@ -32,7 +32,7 @@ func (t *entryTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, erro
 		Action:   bot.ActionBuy,
 		Symbol:   state.Symbol,
 		Quantity: qty,
-		Type:     exchange.TypeMarket,
+		Type:     shared.TypeMarket,
 	}, nil
 }
 
@@ -50,7 +50,7 @@ func (t *exitTrigger) handle(s *Signal, state *bot.BotState) (*bot.Signal, error
 		Action:   bot.ActionSell,
 		Symbol:   state.Symbol,
 		Quantity: state.Position.Quantity,
-		Type:     exchange.TypeMarket,
+		Type:     shared.TypeMarket,
 	}, nil
 }
 

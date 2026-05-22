@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
-	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )

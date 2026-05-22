@@ -6,8 +6,8 @@ import (
 	"time"
 
 	bot "github.com/antonygiomarxdev/greedy/internal/domain/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 func TestDCA_FirstBuy(t *testing.T) {
@@ -25,7 +25,7 @@ func TestDCA_FirstBuy(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	signal, err := dca.Evaluate(context.Background(), state)
@@ -52,7 +52,7 @@ func TestDCA_HoldBeforeFrequency(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	// First call: buy (no previous buy)
@@ -84,7 +84,7 @@ func TestDCA_SafetyOrderTriggered(t *testing.T) {
 	// First tick establishes initial price
 	state1 := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 	signal, _ := dca.Evaluate(context.Background(), state1)
 	if signal.Action != bot.ActionBuy {
@@ -94,7 +94,7 @@ func TestDCA_SafetyOrderTriggered(t *testing.T) {
 	// Price drops >5% — safety order should trigger
 	stateDrop := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 47000}, // -6%
+		Ticker: &shared.Ticker{Price: 47000}, // -6%
 	}
 	signal, _ = dca.Evaluate(context.Background(), stateDrop)
 	if signal.Action != bot.ActionBuy {
@@ -124,7 +124,7 @@ func TestDCA_Reset(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 	dca.Evaluate(context.Background(), state)
 
@@ -144,7 +144,7 @@ func TestDCA_ZeroPrice(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 0},
+		Ticker: &shared.Ticker{Price: 0},
 	}
 
 	signal, err := dca.Evaluate(context.Background(), state)

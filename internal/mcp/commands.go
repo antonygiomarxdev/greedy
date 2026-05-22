@@ -6,54 +6,54 @@ import (
 	"fmt"
 	"time"
 
-	dexchange "github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/domain/tool"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
-	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
 
 func init() {
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getTickerCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getOrderBookCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getCandlesCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &placeOrderCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &cancelOrderCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getPositionsCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getBalancesCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &startBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &stopBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &listBotsCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &addMarketCommand{ex: ex}
 	})
-	RegisterCommandFactory(func(ex dexchange.Exchange, sup *trading.Supervisor) tool.Command {
+	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) tool.Command {
 		return &getBotStatusCommand{sup: sup}
 	})
 }
 
-type getTickerCommand struct{ ex dexchange.Exchange }
+type getTickerCommand struct{ ex shared.Exchange }
 
 func (c *getTickerCommand) Name() string        { return tool.NameGetTicker }
 func (c *getTickerCommand) Description() string { return "Get current price for a trading symbol" }
@@ -73,7 +73,7 @@ func (c *getTickerCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 	return jsonString(ticker)
 }
 
-type getOrderBookCommand struct{ ex dexchange.Exchange }
+type getOrderBookCommand struct{ ex shared.Exchange }
 
 func (c *getOrderBookCommand) Name() string        { return tool.NameGetOrderBook }
 func (c *getOrderBookCommand) Description() string { return "Get current order book for a symbol" }
@@ -96,7 +96,7 @@ func (c *getOrderBookCommand) Execute(ctx context.Context, rawArgs json.RawMessa
 	return jsonString(book)
 }
 
-type getCandlesCommand struct{ ex dexchange.Exchange }
+type getCandlesCommand struct{ ex shared.Exchange }
 
 func (c *getCandlesCommand) Name() string        { return tool.NameGetCandles }
 func (c *getCandlesCommand) Description() string { return "Get OHLCV candles for a symbol" }
@@ -115,14 +115,14 @@ func (c *getCandlesCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 	if p.Limit == 0 {
 		p.Limit = 24
 	}
-	candles, err := c.ex.GetCandles(ctx, p.Symbol, dexchange.CandleInterval(p.Interval), p.Limit)
+	candles, err := c.ex.GetCandles(ctx, p.Symbol, shared.CandleInterval(p.Interval), p.Limit)
 	if err != nil {
 		return "", err
 	}
 	return jsonString(candles)
 }
 
-type placeOrderCommand struct{ ex dexchange.Exchange }
+type placeOrderCommand struct{ ex shared.Exchange }
 
 func (c *placeOrderCommand) Name() string { return tool.NamePlaceOrder }
 func (c *placeOrderCommand) Description() string {
@@ -137,10 +137,10 @@ func (c *placeOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 	if err := json.Unmarshal(rawArgs, &p); err != nil {
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
-	order, err := c.ex.PlaceOrder(ctx, dexchange.OrderRequest{
+	order, err := c.ex.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   p.Symbol,
-		Side:     dexchange.OrderSide(p.Side),
-		Type:     dexchange.OrderType(p.Type),
+		Side:     shared.OrderSide(p.Side),
+		Type:     shared.OrderType(p.Type),
 		Quantity: p.Quantity,
 		Price:    p.Price,
 	})
@@ -150,7 +150,7 @@ func (c *placeOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 	return jsonString(order)
 }
 
-type cancelOrderCommand struct{ ex dexchange.Exchange }
+type cancelOrderCommand struct{ ex shared.Exchange }
 
 func (c *cancelOrderCommand) Name() string        { return tool.NameCancelOrder }
 func (c *cancelOrderCommand) Description() string { return "Cancel an open order by ID" }
@@ -169,7 +169,7 @@ func (c *cancelOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessag
 	return fmt.Sprintf(`{"cancelled": true, "order_id": "%s"}`, p.OrderID), nil
 }
 
-type getPositionsCommand struct{ ex dexchange.Exchange }
+type getPositionsCommand struct{ ex shared.Exchange }
 
 func (c *getPositionsCommand) Name() string        { return tool.NameGetPositions }
 func (c *getPositionsCommand) Description() string { return "Get all current positions with P&L" }
@@ -185,7 +185,7 @@ func (c *getPositionsCommand) Execute(ctx context.Context, _ json.RawMessage) (s
 	return jsonString(positions)
 }
 
-type getBalancesCommand struct{ ex dexchange.Exchange }
+type getBalancesCommand struct{ ex shared.Exchange }
 
 func (c *getBalancesCommand) Name() string        { return tool.NameGetBalances }
 func (c *getBalancesCommand) Description() string { return "Get account balances" }
@@ -274,7 +274,7 @@ func (c *listBotsCommand) Execute(_ context.Context, _ json.RawMessage) (string,
 	return jsonString(c.sup.ListBots())
 }
 
-type addMarketCommand struct{ ex dexchange.Exchange }
+type addMarketCommand struct{ ex shared.Exchange }
 
 func (c *addMarketCommand) Name() string { return tool.NameAddMarket }
 func (c *addMarketCommand) Description() string {
@@ -290,28 +290,28 @@ func (c *addMarketCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
 
-	pex, ok := c.ex.(dexchange.MarketLifecycleManager)
+	pex, ok := c.ex.(shared.MarketLifecycleManager)
 	if !ok {
 		return "", fmt.Errorf("exchange does not support AddMarket")
 	}
 
 	if p.InitialPrice == 0 {
-		p.InitialPrice = dexchange.DefaultBasePrice
+		p.InitialPrice = shared.DefaultBasePrice
 	}
 	if p.Drift == 0 {
-		p.Drift = dexchange.DefaultRandomWalkDrift
+		p.Drift = shared.DefaultRandomWalkDrift
 	}
 	if p.Volatility == 0 {
-		p.Volatility = dexchange.DefaultRandomWalkVolatility
+		p.Volatility = shared.DefaultRandomWalkVolatility
 	}
 	if p.LiquidityLevels == 0 {
-		p.LiquidityLevels = dexchange.DefaultLiquidityLevels
+		p.LiquidityLevels = shared.DefaultLiquidityLevels
 	}
 	if p.LiquidityDepth == 0 {
-		p.LiquidityDepth = dexchange.DefaultLiquidityDepth
+		p.LiquidityDepth = shared.DefaultLiquidityDepth
 	}
 
-	pex.AddMarket(p.Symbol, paper.NewRandomWalkFeed(p.Symbol, p.InitialPrice, p.Drift, p.Volatility, dexchange.DefaultTickInterval))
+	pex.AddMarket(p.Symbol, paper.NewRandomWalkFeed(p.Symbol, p.InitialPrice, p.Drift, p.Volatility, shared.DefaultTickInterval))
 	pex.SeedLiquidity(p.Symbol, p.LiquidityLevels, p.LiquidityDepth)
 	pex.StartFeeds(ctx)
 

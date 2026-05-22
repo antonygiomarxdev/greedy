@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
-	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type Engine struct {
@@ -107,7 +107,7 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 		e.exchange.AddMarket(e.cfg.Strategy.Symbol, paper.NewStaticFeed(e.cfg.Strategy.Symbol, candle.Close))
 		e.exchange.SeedLiquidity(e.cfg.Strategy.Symbol, 20, candle.Close*0.01)
 
-		ticker := &exchange.Ticker{Symbol: candle.Symbol, Price: candle.Close, Time: candle.Timestamp}
+		ticker := &shared.Ticker{Symbol: candle.Symbol, Price: candle.Close, Time: candle.Timestamp}
 		position, _ := e.exchange.GetPosition(ctx, candle.Symbol)
 		balance, _ := e.exchange.GetBalance(ctx, "USD")
 		openOrders, _ := e.exchange.ListOpenOrders(ctx, candle.Symbol)
@@ -131,12 +131,12 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 			continue
 		}
 
-		side := exchange.SideBuy
+		side := shared.SideBuy
 		if signal.Action == bot.ActionSell {
-			side = exchange.SideSell
+			side = shared.SideSell
 		}
 
-		order, err := e.exchange.PlaceOrder(ctx, exchange.OrderRequest{
+		order, err := e.exchange.PlaceOrder(ctx, shared.OrderRequest{
 			Symbol:   signal.Symbol,
 			Side:     side,
 			Type:     signal.Type,
@@ -150,7 +150,7 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 
 		var pnl float64
 		if order.FilledQuantity > 0 {
-			if side == exchange.SideSell && position != nil && position.AvgEntryPrice > 0 {
+			if side == shared.SideSell && position != nil && position.AvgEntryPrice > 0 {
 				pnl = (candle.Close - position.AvgEntryPrice) * order.FilledQuantity
 			}
 		}
@@ -165,7 +165,7 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 		})
 
 		bot.NotifyOrderConfirmer(e.strategy, signal.Price, order.ID)
-		if order.Status == exchange.StatusFilled || order.Status == exchange.StatusPartiallyFilled {
+		if order.Status == shared.StatusFilled || order.Status == shared.StatusPartiallyFilled {
 			bot.NotifyOrderFilled(e.strategy, signal.Price)
 		}
 
@@ -181,7 +181,7 @@ func (e *Engine) Run(ctx context.Context) (*Report, error) {
 	return e.buildReport(startTime, endTime), nil
 }
 
-func (e *Engine) recordEquity(ts time.Time, price float64, pos *exchange.Position) {
+func (e *Engine) recordEquity(ts time.Time, price float64, pos *shared.Position) {
 	bal, _ := e.exchange.GetBalance(context.Background(), "USD")
 	var equity float64
 	if pos != nil {

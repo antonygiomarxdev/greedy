@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type PlaceOrderUseCase struct {
-	ex exchange.Exchange
+	ex shared.Exchange
 }
 
-func NewPlaceOrderUseCase(ex exchange.Exchange) *PlaceOrderUseCase {
+func NewPlaceOrderUseCase(ex shared.Exchange) *PlaceOrderUseCase {
 	return &PlaceOrderUseCase{ex: ex}
 }
 
-func (uc *PlaceOrderUseCase) Execute(ctx context.Context, req exchange.OrderRequest) (*exchange.Order, error) {
+func (uc *PlaceOrderUseCase) Execute(ctx context.Context, req shared.OrderRequest) (*shared.Order, error) {
 	req.ClientOrderID = fmt.Sprintf("order-%d", time.Now().UnixNano())
 	order, err := uc.ex.PlaceOrder(ctx, req)
 	if err != nil {

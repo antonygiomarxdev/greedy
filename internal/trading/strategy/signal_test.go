@@ -6,8 +6,8 @@ import (
 	"time"
 
 	bot "github.com/antonygiomarxdev/greedy/internal/domain/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 func TestSignal_EntryTrigger(t *testing.T) {
@@ -19,7 +19,7 @@ func TestSignal_EntryTrigger(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	// No trigger yet — should hold
@@ -34,7 +34,7 @@ func TestSignal_EntryTrigger(t *testing.T) {
 	if signal.Action != bot.ActionBuy {
 		t.Fatalf("expected buy after entry trigger, got %s", signal.Action)
 	}
-	if signal.Type != exchange.TypeMarket {
+	if signal.Type != shared.TypeMarket {
 		t.Fatalf("expected market order, got %s", signal.Type)
 	}
 	expectedQty := 1000.0 / 50000.0
@@ -52,8 +52,8 @@ func TestSignal_ExitTrigger(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
-		Position: &exchange.Position{
+		Ticker: &shared.Ticker{Price: 50000},
+		Position: &shared.Position{
 			Symbol:   "BTC-USD",
 			Quantity: 0.02,
 		},
@@ -81,7 +81,7 @@ func TestSignal_ExitWithoutPosition(t *testing.T) {
 
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	s.Trigger("exit")
@@ -98,7 +98,7 @@ func TestSignal_DoubleEntryIgnored(t *testing.T) {
 	})
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	s.Trigger("entry")
@@ -118,7 +118,7 @@ func TestSignal_EntryWithZeroPrice(t *testing.T) {
 	})
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 0},
+		Ticker: &shared.Ticker{Price: 0},
 	}
 
 	s.Trigger("entry")
@@ -138,7 +138,7 @@ func TestSignal_Reset(t *testing.T) {
 	})
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	s.Trigger("entry")
@@ -180,7 +180,7 @@ func TestSignal_UnknownTrigger(t *testing.T) {
 	})
 	state := &bot.BotState{
 		Symbol: "BTC-USD",
-		Ticker: &exchange.Ticker{Price: 50000},
+		Ticker: &shared.Ticker{Price: 50000},
 	}
 
 	s.Trigger("unknown_trigger")

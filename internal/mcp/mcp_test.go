@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/antonygiomarxdev/greedy/internal/infrastructure/exchange/paper"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 

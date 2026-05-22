@@ -3,7 +3,7 @@ package bot
 import (
 	"context"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type Action string
@@ -19,15 +19,15 @@ type Signal struct {
 	Symbol   string
 	Quantity float64
 	Price    float64 // 0 = market order
-	Type     exchange.OrderType
+	Type     shared.OrderType
 }
 
 type BotState struct {
 	Symbol     string
-	Position   *exchange.Position
-	Balance    *exchange.Balance
-	Ticker     *exchange.Ticker
-	OpenOrders []exchange.Order
+	Position   *shared.Position
+	Balance    *shared.Balance
+	Ticker     *shared.Ticker
+	OpenOrders []shared.Order
 }
 
 type Strategy interface {

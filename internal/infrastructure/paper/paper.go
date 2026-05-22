@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type PaperExchange struct {
@@ -16,10 +16,10 @@ type PaperExchange struct {
 	books     map[string]*OrderBook
 	feeds     map[string]*PriceFeed
 	balances  map[string]float64
-	orders    map[string]*exchange.Order
-	positions map[string]*exchange.Position
+	orders    map[string]*shared.Order
+	positions map[string]*shared.Position
 	nextID    atomic.Uint64
-	trades    []exchange.Fill
+	trades    []shared.Fill
 	feeRate   float64
 }
 
@@ -28,21 +28,21 @@ func New(feeRate float64) *PaperExchange {
 		books:     make(map[string]*OrderBook),
 		feeds:     make(map[string]*PriceFeed),
 		balances:  map[string]float64{"USD": 100000},
-		orders:    make(map[string]*exchange.Order),
-		positions: make(map[string]*exchange.Position),
+		orders:    make(map[string]*shared.Order),
+		positions: make(map[string]*shared.Position),
 		feeRate:   feeRate,
 	}
 
 	// Default BTC-USD market
-	pe.books[exchange.DefaultSymbol] = NewOrderBook()
-	pe.feeds[exchange.DefaultSymbol] = NewRandomWalkFeed(exchange.DefaultSymbol, exchange.DefaultBasePrice, exchange.DefaultRandomWalkDrift, exchange.DefaultRandomWalkVolatility, exchange.DefaultTickInterval)
+	pe.books[shared.DefaultSymbol] = NewOrderBook()
+	pe.feeds[shared.DefaultSymbol] = NewRandomWalkFeed(shared.DefaultSymbol, shared.DefaultBasePrice, shared.DefaultRandomWalkDrift, shared.DefaultRandomWalkVolatility, shared.DefaultTickInterval)
 
 	return pe
 }
 
 func (pe *PaperExchange) Name() string { return "paper" }
 
-// AddMarket adds a new symbol with a price feed to the exchange.
+// AddMarket adds a new symbol with a price feed to the shared.
 func (pe *PaperExchange) AddMarket(symbol string, feed *PriceFeed) {
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
@@ -71,8 +71,8 @@ func (pe *PaperExchange) SeedLiquidity(symbol string, levels int, spread float64
 
 	for i := 0; i < levels; i++ {
 		offset := spread * float64(i+1)
-		book.Bids = append(book.Bids, exchange.BookLevel{Price: round2(mid - offset), Quantity: 1.0})
-		book.Asks = append(book.Asks, exchange.BookLevel{Price: round2(mid + offset), Quantity: 1.0})
+		book.Bids = append(book.Bids, shared.BookLevel{Price: round2(mid - offset), Quantity: 1.0})
+		book.Asks = append(book.Asks, shared.BookLevel{Price: round2(mid + offset), Quantity: 1.0})
 	}
 }
 
@@ -86,7 +86,7 @@ func (pe *PaperExchange) getBook(symbol string) (*OrderBook, error) {
 	defer pe.mu.RUnlock()
 	book, ok := pe.books[symbol]
 	if !ok {
-		return nil, exchange.ErrSymbolNotFound
+		return nil, shared.ErrSymbolNotFound
 	}
 	return book, nil
 }
@@ -96,7 +96,7 @@ func (pe *PaperExchange) getFeed(symbol string) (*PriceFeed, error) {
 	defer pe.mu.RUnlock()
 	feed, ok := pe.feeds[symbol]
 	if !ok {
-		return nil, exchange.ErrSymbolNotFound
+		return nil, shared.ErrSymbolNotFound
 	}
 	return feed, nil
 }
@@ -111,7 +111,7 @@ func (pe *PaperExchange) StartFeeds(ctx context.Context) {
 
 func (pe *PaperExchange) Ping(ctx context.Context) error { return nil }
 
-func (pe *PaperExchange) GetOrderBook(ctx context.Context, symbol string, depth int) (*exchange.OrderBook, error) {
+func (pe *PaperExchange) GetOrderBook(ctx context.Context, symbol string, depth int) (*shared.OrderBook, error) {
 	book, err := pe.getBook(symbol)
 	if err != nil {
 		return nil, err
@@ -128,25 +128,25 @@ func (pe *PaperExchange) GetOrderBook(ctx context.Context, symbol string, depth 
 	return snap, nil
 }
 
-func (pe *PaperExchange) GetTicker(ctx context.Context, symbol string) (*exchange.Ticker, error) {
+func (pe *PaperExchange) GetTicker(ctx context.Context, symbol string) (*shared.Ticker, error) {
 	feed, err := pe.getFeed(symbol)
 	if err != nil {
 		return nil, err
 	}
-	return &exchange.Ticker{
+	return &shared.Ticker{
 		Symbol: symbol,
 		Price:  feed.Price(),
 		Time:   time.Now(),
 	}, nil
 }
 
-func (pe *PaperExchange) GetCandles(ctx context.Context, symbol string, interval exchange.CandleInterval, limit int) ([]exchange.Candle, error) {
+func (pe *PaperExchange) GetCandles(ctx context.Context, symbol string, interval shared.CandleInterval, limit int) ([]shared.Candle, error) {
 	feed, err := pe.getFeed(symbol)
 	if err != nil {
 		return nil, err
 	}
 	price := feed.Price()
-	candle := exchange.Candle{
+	candle := shared.Candle{
 		Symbol:   symbol,
 		Interval: string(interval),
 		OpenTime: time.Now(),
@@ -156,17 +156,17 @@ func (pe *PaperExchange) GetCandles(ctx context.Context, symbol string, interval
 		Close:    price,
 		Volume:   0,
 	}
-	return []exchange.Candle{candle}, nil
+	return []shared.Candle{candle}, nil
 }
 
-func (pe *PaperExchange) SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *exchange.OrderBookUpdate, error) {
+func (pe *PaperExchange) SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *shared.OrderBookUpdate, error) {
 	feed, err := pe.getFeed(symbol)
 	if err != nil {
 		return nil, err
 	}
 	_, priceCh := feed.Subscribe()
 
-	updates := make(chan *exchange.OrderBookUpdate, 16)
+	updates := make(chan *shared.OrderBookUpdate, 16)
 	go func() {
 		defer close(updates)
 		for {
@@ -178,13 +178,13 @@ func (pe *PaperExchange) SubscribeOrderBook(ctx context.Context, symbol string) 
 					return
 				}
 				// Rebuild book around new price
-				book := &exchange.OrderBookUpdate{
+				book := &shared.OrderBookUpdate{
 					Symbol: symbol,
-					Bids: []exchange.BookLevel{
+					Bids: []shared.BookLevel{
 						{Price: round2(price * 0.999), Quantity: 1.0},
 						{Price: round2(price * 0.998), Quantity: 1.0},
 					},
-					Asks: []exchange.BookLevel{
+					Asks: []shared.BookLevel{
 						{Price: round2(price * 1.001), Quantity: 1.0},
 						{Price: round2(price * 1.002), Quantity: 1.0},
 					},
@@ -200,7 +200,7 @@ func (pe *PaperExchange) SubscribeOrderBook(ctx context.Context, symbol string) 
 	return updates, nil
 }
 
-func (pe *PaperExchange) PlaceOrder(ctx context.Context, req exchange.OrderRequest) (*exchange.Order, error) {
+func (pe *PaperExchange) PlaceOrder(ctx context.Context, req shared.OrderRequest) (*shared.Order, error) {
 	book, err := pe.getBook(req.Symbol)
 	if err != nil {
 		return nil, err
@@ -211,7 +211,7 @@ func (pe *PaperExchange) PlaceOrder(ctx context.Context, req exchange.OrderReque
 	}
 
 	orderID := pe.nextOrderID()
-	order := &exchange.Order{
+	order := &shared.Order{
 		ID:            orderID,
 		ClientOrderID: req.ClientOrderID,
 		Symbol:        req.Symbol,
@@ -219,13 +219,13 @@ func (pe *PaperExchange) PlaceOrder(ctx context.Context, req exchange.OrderReque
 		Type:          req.Type,
 		Price:         req.Price,
 		Quantity:      req.Quantity,
-		Status:        exchange.StatusOpen,
+		Status:        shared.StatusOpen,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
 
-	if order.Type == exchange.TypeMarket && order.Price == 0 {
-		if order.Side == exchange.SideBuy {
+	if order.Type == shared.TypeMarket && order.Price == 0 {
+		if order.Side == shared.SideBuy {
 			order.Price = feed.Price() * 1.001
 		} else {
 			order.Price = feed.Price() * 0.999
@@ -259,36 +259,36 @@ func (pe *PaperExchange) CancelOrder(ctx context.Context, orderID string) error 
 
 	order, ok := pe.orders[orderID]
 	if !ok {
-		return exchange.ErrOrderNotFound
+		return shared.ErrOrderNotFound
 	}
-	order.Status = exchange.StatusCancelled
+	order.Status = shared.StatusCancelled
 	order.UpdatedAt = time.Now()
 	return nil
 }
 
-func (pe *PaperExchange) GetOrder(ctx context.Context, orderID string) (*exchange.Order, error) {
+func (pe *PaperExchange) GetOrder(ctx context.Context, orderID string) (*shared.Order, error) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
 	order, ok := pe.orders[orderID]
 	if !ok {
-		return nil, exchange.ErrOrderNotFound
+		return nil, shared.ErrOrderNotFound
 	}
 	cp := *order
 	return &cp, nil
 }
 
-func (pe *PaperExchange) ListOpenOrders(ctx context.Context, symbol string) ([]exchange.Order, error) {
+func (pe *PaperExchange) ListOpenOrders(ctx context.Context, symbol string) ([]shared.Order, error) {
 	pe.mu.RLock()
-	ordersCopy := make([]exchange.Order, 0, len(pe.orders))
+	ordersCopy := make([]shared.Order, 0, len(pe.orders))
 	for _, o := range pe.orders {
 		ordersCopy = append(ordersCopy, *o)
 	}
 	pe.mu.RUnlock()
 
-	var orders []exchange.Order
+	var orders []shared.Order
 	for _, o := range ordersCopy {
-		if o.Status == exchange.StatusOpen || o.Status == exchange.StatusPartiallyFilled {
+		if o.Status == shared.StatusOpen || o.Status == shared.StatusPartiallyFilled {
 			if symbol == "" || o.Symbol == symbol {
 				orders = append(orders, o)
 			}
@@ -297,7 +297,7 @@ func (pe *PaperExchange) ListOpenOrders(ctx context.Context, symbol string) ([]e
 	return orders, nil
 }
 
-func (pe *PaperExchange) GetBalance(ctx context.Context, asset string) (*exchange.Balance, error) {
+func (pe *PaperExchange) GetBalance(ctx context.Context, asset string) (*shared.Balance, error) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
@@ -305,58 +305,58 @@ func (pe *PaperExchange) GetBalance(ctx context.Context, asset string) (*exchang
 	if !ok {
 		free = 0
 	}
-	return &exchange.Balance{
+	return &shared.Balance{
 		Asset: asset,
 		Free:  free,
 		Total: free,
 	}, nil
 }
 
-func (pe *PaperExchange) ListBalances(ctx context.Context) ([]exchange.Balance, error) {
+func (pe *PaperExchange) ListBalances(ctx context.Context) ([]shared.Balance, error) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
-	bals := make([]exchange.Balance, 0, len(pe.balances))
+	bals := make([]shared.Balance, 0, len(pe.balances))
 	for asset, free := range pe.balances {
-		bals = append(bals, exchange.Balance{Asset: asset, Free: free, Total: free})
+		bals = append(bals, shared.Balance{Asset: asset, Free: free, Total: free})
 	}
 	return bals, nil
 }
 
-func (pe *PaperExchange) GetPosition(ctx context.Context, symbol string) (*exchange.Position, error) {
+func (pe *PaperExchange) GetPosition(ctx context.Context, symbol string) (*shared.Position, error) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
 	pos, ok := pe.positions[symbol]
 	if !ok {
-		return &exchange.Position{Symbol: symbol}, nil
+		return &shared.Position{Symbol: symbol}, nil
 	}
 	cp := *pos
 	return &cp, nil
 }
 
-func (pe *PaperExchange) ListPositions(ctx context.Context) ([]exchange.Position, error) {
+func (pe *PaperExchange) ListPositions(ctx context.Context) ([]shared.Position, error) {
 	pe.mu.RLock()
 	defer pe.mu.RUnlock()
 
-	pos := make([]exchange.Position, 0, len(pe.positions))
+	pos := make([]shared.Position, 0, len(pe.positions))
 	for _, p := range pe.positions {
 		pos = append(pos, *p)
 	}
 	return pos, nil
 }
 
-func (pe *PaperExchange) updatePosition(symbol string, side exchange.OrderSide, price, qty float64) {
+func (pe *PaperExchange) updatePosition(symbol string, side shared.OrderSide, price, qty float64) {
 	pe.mu.Lock()
 	defer pe.mu.Unlock()
 
 	pos, ok := pe.positions[symbol]
 	if !ok {
-		pos = &exchange.Position{Symbol: symbol}
+		pos = &shared.Position{Symbol: symbol}
 		pe.positions[symbol] = pos
 	}
 
-	if side == exchange.SideBuy {
+	if side == shared.SideBuy {
 		totalCost := pos.AvgEntryPrice*math.Abs(pos.Quantity) + price*qty
 		newQty := pos.Quantity + qty
 		if newQty != 0 {

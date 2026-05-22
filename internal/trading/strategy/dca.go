@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/domain/bot"
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type DCA struct {
@@ -53,7 +53,7 @@ func (d *DCA) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, e
 			Action:   bot.ActionBuy,
 			Symbol:   state.Symbol,
 			Quantity: qty,
-			Type:     exchange.TypeMarket,
+			Type:     shared.TypeMarket,
 		}, nil
 	}
 
@@ -72,7 +72,7 @@ func (d *DCA) Evaluate(ctx context.Context, state *bot.BotState) (*bot.Signal, e
 				Action:   bot.ActionBuy,
 				Symbol:   state.Symbol,
 				Quantity: math.Round(qty*1e8) / 1e8,
-				Type:     exchange.TypeMarket,
+				Type:     shared.TypeMarket,
 			}, nil
 		}
 	}

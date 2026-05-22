@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antonygiomarxdev/greedy/internal/domain/exchange"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 func TestPaperExchange_New(t *testing.T) {
@@ -41,16 +41,16 @@ func TestPaperExchange_PlaceMarketOrder(t *testing.T) {
 	pe.SeedLiquidity("BTC-USD", 10, 100)
 	ctx := context.Background()
 
-	order, err := pe.PlaceOrder(ctx, exchange.OrderRequest{
+	order, err := pe.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   "BTC-USD",
-		Side:     exchange.SideBuy,
-		Type:     exchange.TypeMarket,
+		Side:     shared.SideBuy,
+		Type:     shared.TypeMarket,
 		Quantity: 0.01,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if order.Status != exchange.StatusFilled {
+	if order.Status != shared.StatusFilled {
 		t.Fatalf("expected filled, got %s", order.Status)
 	}
 }
@@ -63,17 +63,17 @@ func TestPaperExchange_PlaceLimitOrder(t *testing.T) {
 	ticker, _ := pe.GetTicker(ctx, "BTC-USD")
 	lowPrice := ticker.Price * 0.5 // far below market
 
-	order, err := pe.PlaceOrder(ctx, exchange.OrderRequest{
+	order, err := pe.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   "BTC-USD",
-		Side:     exchange.SideBuy,
-		Type:     exchange.TypeLimit,
+		Side:     shared.SideBuy,
+		Type:     shared.TypeLimit,
 		Quantity: 0.01,
 		Price:    lowPrice,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if order.Status != exchange.StatusOpen {
+	if order.Status != shared.StatusOpen {
 		t.Fatalf("expected open, got %s", order.Status)
 	}
 }
@@ -83,10 +83,10 @@ func TestPaperExchange_GetOrder(t *testing.T) {
 	pe.SeedLiquidity("BTC-USD", 10, 100)
 	ctx := context.Background()
 
-	order, _ := pe.PlaceOrder(ctx, exchange.OrderRequest{
+	order, _ := pe.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   "BTC-USD",
-		Side:     exchange.SideBuy,
-		Type:     exchange.TypeMarket,
+		Side:     shared.SideBuy,
+		Type:     shared.TypeMarket,
 		Quantity: 0.01,
 	})
 
@@ -105,10 +105,10 @@ func TestPaperExchange_CancelOrder(t *testing.T) {
 	ctx := context.Background()
 
 	ticker, _ := pe.GetTicker(ctx, "BTC-USD")
-	order, _ := pe.PlaceOrder(ctx, exchange.OrderRequest{
+	order, _ := pe.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   "BTC-USD",
-		Side:     exchange.SideBuy,
-		Type:     exchange.TypeLimit,
+		Side:     shared.SideBuy,
+		Type:     shared.TypeLimit,
 		Quantity: 0.01,
 		Price:    ticker.Price * 0.5,
 	})
@@ -118,7 +118,7 @@ func TestPaperExchange_CancelOrder(t *testing.T) {
 	}
 
 	retrieved, _ := pe.GetOrder(ctx, order.ID)
-	if retrieved.Status != exchange.StatusCancelled {
+	if retrieved.Status != shared.StatusCancelled {
 		t.Fatalf("expected cancelled, got %s", retrieved.Status)
 	}
 }
@@ -129,10 +129,10 @@ func TestPaperExchange_ListOpenOrders(t *testing.T) {
 	ctx := context.Background()
 
 	ticker, _ := pe.GetTicker(ctx, "BTC-USD")
-	_, err := pe.PlaceOrder(ctx, exchange.OrderRequest{
+	_, err := pe.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   "BTC-USD",
-		Side:     exchange.SideBuy,
-		Type:     exchange.TypeLimit,
+		Side:     shared.SideBuy,
+		Type:     shared.TypeLimit,
 		Quantity: 0.01,
 		Price:    ticker.Price * 0.5,
 	})
@@ -162,10 +162,10 @@ func TestPaperExchange_GetPosition(t *testing.T) {
 	pe.SeedLiquidity("BTC-USD", 10, 100)
 	ctx := context.Background()
 
-	_, err := pe.PlaceOrder(ctx, exchange.OrderRequest{
+	_, err := pe.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   "BTC-USD",
-		Side:     exchange.SideBuy,
-		Type:     exchange.TypeMarket,
+		Side:     shared.SideBuy,
+		Type:     shared.TypeMarket,
 		Quantity: 0.01,
 	})
 
@@ -184,7 +184,7 @@ func TestPaperExchange_GetOrder_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for nonexistent order")
 	}
-	if err != exchange.ErrOrderNotFound {
+	if err != shared.ErrOrderNotFound {
 		t.Fatalf("expected ErrOrderNotFound, got %v", err)
 	}
 }
