@@ -12,25 +12,21 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/ratelimiter"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 var _ shared.Exchange = (*Connector)(nil)
 
 type Connector struct {
-	client     *http.Client
-	cfg        Config
-	key        string
-	secret     string
-	pass       string
-	mu         sync.Mutex
-	tokens     float64
-	lastRefill time.Time
-	burst      int
-	refillDur  time.Duration
+	client *http.Client
+	cfg    Config
+	key    string
+	secret string
+	pass   string
+	rl     ratelimiter.RateLimiter
 }
 
 func New(cfg Config) *Connector {
@@ -38,26 +34,24 @@ func New(cfg Config) *Connector {
 		cfg.RESTBaseURL = SandboxRESTURL
 	}
 	return &Connector{
-		client:    &http.Client{Timeout: 30 * time.Second},
-		cfg:       cfg,
-		key:       cfg.APIKey,
-		secret:    cfg.APISecret,
-		pass:      cfg.Passphrase,
-		tokens:    float64(30),
-		burst:     30,
-		refillDur: time.Second,
+		client: &http.Client{Timeout: 30 * time.Second},
+		cfg:    cfg,
+		key:    cfg.APIKey,
+		secret: cfg.APISecret,
+		pass:   cfg.Passphrase,
+		rl:     ratelimiter.NewTokenBucket(coinbaseBurst, time.Second),
 	}
 }
 
 func (c *Connector) Name() string { return string(shared.ProviderCoinbase) }
 
 func (c *Connector) Ping(ctx context.Context) error {
-	_, err := c.request(ctx, http.MethodGet, "/api/v3/brokerage/time", nil)
+	_, err := c.request(ctx, http.MethodGet, pathPing, nil)
 	return err
 }
 
 func (c *Connector) GetOrderBook(ctx context.Context, symbol string, depth int) (*shared.OrderBook, error) {
-	path := fmt.Sprintf("/api/v3/brokerage/market/product_book?product_id=%s", symbol)
+	path := fmt.Sprintf("%s?product_id=%s", pathProductBook, symbol)
 	if depth > 0 {
 		path += fmt.Sprintf("&limit=%d", depth)
 	}
@@ -73,7 +67,10 @@ func (c *Connector) GetOrderBook(ctx context.Context, symbol string, depth int) 
 }
 
 func (c *Connector) GetTicker(ctx context.Context, symbol string) (*shared.Ticker, error) {
-	path := fmt.Sprintf("/api/v3/brokerage/products/%s/ticker", symbol)
+	if !validSymbol(symbol) {
+		return nil, fmt.Errorf("%w: %q", shared.ErrSymbolNotFound, symbol)
+	}
+	path := fmt.Sprintf(pathTickerFmt, symbol)
 	data, err := c.request(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -82,7 +79,10 @@ func (c *Connector) GetTicker(ctx context.Context, symbol string) (*shared.Ticke
 	if err := json.Unmarshal(data, &tr); err != nil {
 		return nil, fmt.Errorf("parse ticker: %w", err)
 	}
-	price, _ := strconv.ParseFloat(tr.Price, 64)
+	price, err := strconv.ParseFloat(tr.Price, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parse ticker price %q: %w", tr.Price, err)
+	}
 	return &shared.Ticker{
 		Symbol: symbol,
 		Price:  price,
@@ -91,8 +91,11 @@ func (c *Connector) GetTicker(ctx context.Context, symbol string) (*shared.Ticke
 }
 
 func (c *Connector) GetCandles(ctx context.Context, symbol string, interval shared.CandleInterval, limit int) ([]shared.Candle, error) {
+	if !validSymbol(symbol) {
+		return nil, fmt.Errorf("%w: %q", shared.ErrSymbolNotFound, symbol)
+	}
 	gran := convertGranularity(interval)
-	path := fmt.Sprintf("/api/v3/brokerage/products/%s/candles?granularity=%s", symbol, gran)
+	path := fmt.Sprintf(pathCandlesFmt+"?granularity=%s", symbol, gran)
 	if limit > 0 {
 		path += fmt.Sprintf("&limit=%d", limit)
 	}
@@ -106,11 +109,26 @@ func (c *Connector) GetCandles(ctx context.Context, symbol string, interval shar
 	}
 	candles := make([]shared.Candle, len(cr.Candles))
 	for i, ce := range cr.Candles {
-		open, _ := strconv.ParseFloat(ce.Open, 64)
-		high, _ := strconv.ParseFloat(ce.High, 64)
-		low, _ := strconv.ParseFloat(ce.Low, 64)
-		closev, _ := strconv.ParseFloat(ce.Close, 64)
-		volume, _ := strconv.ParseFloat(ce.Volume, 64)
+		open, err := strconv.ParseFloat(ce.Open, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse candle open: %w", err)
+		}
+		high, err := strconv.ParseFloat(ce.High, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse candle high: %w", err)
+		}
+		low, err := strconv.ParseFloat(ce.Low, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse candle low: %w", err)
+		}
+		closev, err := strconv.ParseFloat(ce.Close, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse candle close: %w", err)
+		}
+		volume, err := strconv.ParseFloat(ce.Volume, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse candle volume: %w", err)
+		}
 		candles[i] = shared.Candle{
 			Symbol:   symbol,
 			Interval: string(interval),
@@ -129,6 +147,9 @@ func (c *Connector) SubscribeOrderBook(ctx context.Context, symbol string) (<-ch
 }
 
 func (c *Connector) PlaceOrder(ctx context.Context, req shared.OrderRequest) (*shared.Order, error) {
+	if !validSymbol(req.Symbol) {
+		return nil, fmt.Errorf("%w: %q", shared.ErrSymbolNotFound, req.Symbol)
+	}
 	or := orderRequest{
 		ClientOrderID: req.ClientOrderID,
 		ProductID:     req.Symbol,
@@ -152,7 +173,7 @@ func (c *Connector) PlaceOrder(ctx context.Context, req shared.OrderRequest) (*s
 	if err != nil {
 		return nil, fmt.Errorf("marshal order: %w", err)
 	}
-	data, err := c.request(ctx, http.MethodPost, "/api/v3/brokerage/orders", body)
+	data, err := c.request(ctx, http.MethodPost, pathOrders, body)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +189,7 @@ func (c *Connector) PlaceOrder(ctx context.Context, req shared.OrderRequest) (*s
 
 func (c *Connector) CancelOrder(ctx context.Context, orderID string) error {
 	body, _ := json.Marshal(map[string][]string{"order_ids": {orderID}})
-	data, err := c.request(ctx, http.MethodPost, "/api/v3/brokerage/orders/batch_cancel", body)
+	data, err := c.request(ctx, http.MethodPost, pathBatchCancel, body)
 	if err != nil {
 		return err
 	}
@@ -188,7 +209,7 @@ func (c *Connector) CancelOrder(ctx context.Context, orderID string) error {
 }
 
 func (c *Connector) GetOrder(ctx context.Context, orderID string) (*shared.Order, error) {
-	path := fmt.Sprintf("/api/v3/brokerage/orders/historical/%s", orderID)
+	path := fmt.Sprintf(pathOrderFmt, orderID)
 	data, err := c.request(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -197,11 +218,11 @@ func (c *Connector) GetOrder(ctx context.Context, orderID string) (*shared.Order
 	if err := json.Unmarshal(data, &oe); err != nil {
 		return nil, fmt.Errorf("parse order: %w", err)
 	}
-	return convertOrderEntry(&oe), nil
+	return convertOrderEntry(&oe)
 }
 
 func (c *Connector) ListOpenOrders(ctx context.Context, symbol string) ([]shared.Order, error) {
-	path := "/api/v3/brokerage/orders/historical/batch?order_status=OPEN"
+	path := pathOrdersBatch + "?order_status=OPEN"
 	if symbol != "" {
 		path += "&product_id=" + symbol
 	}
@@ -213,9 +234,13 @@ func (c *Connector) ListOpenOrders(ctx context.Context, symbol string) ([]shared
 	if err := json.Unmarshal(data, &or); err != nil {
 		return nil, fmt.Errorf("parse orders: %w", err)
 	}
-	orders := make([]shared.Order, len(or.Orders))
-	for i, oe := range or.Orders {
-		orders[i] = *convertOrderEntry(&oe)
+	orders := make([]shared.Order, 0, len(or.Orders))
+	for i := range or.Orders {
+		o, err := convertOrderEntry(&or.Orders[i])
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, *o)
 	}
 	return orders, nil
 }
@@ -234,7 +259,7 @@ func (c *Connector) GetBalance(ctx context.Context, asset string) (*shared.Balan
 }
 
 func (c *Connector) ListBalances(ctx context.Context) ([]shared.Balance, error) {
-	data, err := c.request(ctx, http.MethodGet, "/api/v3/brokerage/accounts", nil)
+	data, err := c.request(ctx, http.MethodGet, pathAccounts, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -244,8 +269,14 @@ func (c *Connector) ListBalances(ctx context.Context) ([]shared.Balance, error) 
 	}
 	bals := make([]shared.Balance, len(ar.Accounts))
 	for i, a := range ar.Accounts {
-		free, _ := strconv.ParseFloat(a.Available, 64)
-		locked, _ := strconv.ParseFloat(a.Hold, 64)
+		free, err := strconv.ParseFloat(a.Available, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse balance %s: %w", a.Currency, err)
+		}
+		locked, err := strconv.ParseFloat(a.Hold, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse hold %s: %w", a.Currency, err)
+		}
 		bals[i] = shared.Balance{
 			Asset:  a.Currency,
 			Free:   free,
@@ -270,7 +301,7 @@ func (c *Connector) GetPosition(ctx context.Context, symbol string) (*shared.Pos
 }
 
 func (c *Connector) ListPositions(ctx context.Context) ([]shared.Position, error) {
-	data, err := c.request(ctx, http.MethodGet, "/api/v3/brokerage/portfolios", nil)
+	data, err := c.request(ctx, http.MethodGet, pathPortfolios, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -281,8 +312,7 @@ func (c *Connector) ListPositions(ctx context.Context) ([]shared.Position, error
 	if len(pr.Portfolios) == 0 {
 		return nil, nil
 	}
-	puuid := pr.Portfolios[0].UUID
-	posPath := fmt.Sprintf("/api/v3/brokerage/portfolios/%s/positions", puuid)
+	posPath := fmt.Sprintf(pathPositionsFmt, pr.Portfolios[0].UUID)
 	data, err = c.request(ctx, http.MethodGet, posPath, nil)
 	if err != nil {
 		return nil, err
@@ -293,49 +323,54 @@ func (c *Connector) ListPositions(ctx context.Context) ([]shared.Position, error
 	}
 	positions := make([]shared.Position, len(presp.Positions))
 	for i, pe := range presp.Positions {
-		size, _ := strconv.ParseFloat(pe.Size, 64)
-		entry, _ := strconv.ParseFloat(pe.EntryPrice, 64)
-		cur, _ := strconv.ParseFloat(pe.CurrentPrice, 64)
-		unrealized, _ := strconv.ParseFloat(pe.UnrealizedPnL, 64)
+		size, err := strconv.ParseFloat(pe.Size, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse position size: %w", err)
+		}
+		entry, err := strconv.ParseFloat(pe.EntryPrice, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse entry price: %w", err)
+		}
+		unrealized, err := strconv.ParseFloat(pe.UnrealizedPnL, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parse unrealized PnL: %w", err)
+		}
 		positions[i] = shared.Position{
 			Symbol:        pe.ProductID,
 			Quantity:      size,
 			AvgEntryPrice: entry,
 			UnrealizedPnL: unrealized,
 		}
-		_ = cur
 	}
 	return positions, nil
 }
 
 func (c *Connector) request(ctx context.Context, method, path string, body []byte) ([]byte, error) {
-	if err := c.waitToken(ctx); err != nil {
+	if err := c.rl.Wait(ctx); err != nil {
 		return nil, err
 	}
 
 	url := c.cfg.RESTBaseURL + path
-	var reqBody io.Reader
-	if body != nil {
-		reqBody = bytes.NewReader(body)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	sig := c.sign(method, path, timestamp, body)
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("CB-ACCESS-KEY", c.key)
-	req.Header.Set("CB-ACCESS-SIGN", sig)
-	req.Header.Set("CB-ACCESS-TIMESTAMP", timestamp)
-	if c.pass != "" {
-		req.Header.Set("CB-ACCESS-PASSPHRASE", c.pass)
-	}
 
 	for attempt := 0; attempt < defaultMaxRetries; attempt++ {
+		var reqBody io.Reader
+		if body != nil {
+			reqBody = bytes.NewReader(body)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
+		}
+
+		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("CB-ACCESS-KEY", c.key)
+		req.Header.Set("CB-ACCESS-SIGN", c.sign(method, path, timestamp, body))
+		req.Header.Set("CB-ACCESS-TIMESTAMP", timestamp)
+		if c.pass != "" {
+			req.Header.Set("CB-ACCESS-PASSPHRASE", c.pass)
+		}
+
 		resp, err := c.client.Do(req)
 		if err != nil {
 			if attempt == defaultMaxRetries-1 {
@@ -344,11 +379,12 @@ func (c *Connector) request(ctx context.Context, method, path string, body []byt
 			time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
 			continue
 		}
-		defer resp.Body.Close()
 
-		respData, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("read response: %w", err)
+		respData, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if readErr != nil {
+			return nil, fmt.Errorf("read response: %w", readErr)
 		}
 
 		if resp.StatusCode == http.StatusTooManyRequests {
@@ -365,10 +401,10 @@ func (c *Connector) request(ctx context.Context, method, path string, body []byt
 
 		if resp.StatusCode >= 400 {
 			var eResp errorResponse
-			if json.Unmarshal(respData, &eResp) == nil {
-				return nil, fmt.Errorf("coinbase: %s: %s", eResp.Error, eResp.Message)
+			if json.Unmarshal(respData, &eResp) == nil && eResp.Message != "" {
+				return nil, fmt.Errorf("coinbase: %s", eResp.Message)
 			}
-			return nil, fmt.Errorf("coinbase: http %d: %s", resp.StatusCode, string(respData))
+			return nil, fmt.Errorf("coinbase: http %d", resp.StatusCode)
 		}
 
 		return respData, nil
@@ -385,37 +421,6 @@ func (c *Connector) sign(method, path, timestamp string, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(c.secret))
 	mac.Write([]byte(msg))
 	return hex.EncodeToString(mac.Sum(nil))
-}
-
-func (c *Connector) waitToken(ctx context.Context) error {
-	c.mu.Lock()
-	now := time.Now()
-	elapsed := now.Sub(c.lastRefill).Seconds()
-	c.tokens += elapsed * float64(c.burst) / c.refillDur.Seconds()
-	if c.tokens > float64(c.burst) {
-		c.tokens = float64(c.burst)
-	}
-	c.lastRefill = now
-
-	if c.tokens >= 1 {
-		c.tokens--
-		c.mu.Unlock()
-		return nil
-	}
-	c.mu.Unlock()
-
-	waitTime := time.Duration((1 - c.tokens) * float64(c.refillDur) / float64(c.burst) * 1e9)
-	select {
-	case <-time.After(waitTime):
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	c.mu.Lock()
-	c.tokens = 0
-	c.lastRefill = time.Now()
-	c.mu.Unlock()
-	return nil
 }
 
 func convertGranularity(interval shared.CandleInterval) string {
@@ -471,9 +476,15 @@ func convertOrder(resp *orderResponse, req shared.OrderRequest) *shared.Order {
 	}
 }
 
-func convertOrderEntry(oe *orderEntry) *shared.Order {
-	qty, _ := strconv.ParseFloat(oe.FilledSize, 64)
-	fv, _ := strconv.ParseFloat(oe.FilledValue, 64)
+func convertOrderEntry(oe *orderEntry) (*shared.Order, error) {
+	qty, err := strconv.ParseFloat(oe.FilledSize, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parse filled size: %w", err)
+	}
+	fv, err := strconv.ParseFloat(oe.FilledValue, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parse filled value: %w", err)
+	}
 	avgPrice := 0.0
 	if qty > 0 {
 		avgPrice = fv / qty
@@ -488,14 +499,12 @@ func convertOrderEntry(oe *orderEntry) *shared.Order {
 		Quantity:       qty,
 		FilledQuantity: qty,
 		Status:         convertStatus(oe.Status),
-	}
+	}, nil
 }
 
 func convertStatus(s string) shared.OrderStatus {
 	switch strings.ToUpper(s) {
-	case "OPEN":
-		return shared.StatusOpen
-	case "PENDING":
+	case "OPEN", "PENDING":
 		return shared.StatusOpen
 	case "FILLED":
 		return shared.StatusFilled

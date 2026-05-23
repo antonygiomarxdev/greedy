@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
@@ -20,9 +19,6 @@ func TestNewDefaults(t *testing.T) {
 	c := New(Config{})
 	if c.cfg.RESTBaseURL != SandboxRESTURL {
 		t.Errorf("RESTBaseURL = %s, want %s", c.cfg.RESTBaseURL, SandboxRESTURL)
-	}
-	if c.burst != 30 {
-		t.Errorf("burst = %d, want 30", c.burst)
 	}
 }
 
@@ -87,38 +83,44 @@ func TestSignDifferentInputs(t *testing.T) {
 	}
 }
 
-func TestRateLimiterDoesNotBlockOnFirstCall(t *testing.T) {
-	c := New(Config{APIKey: "key", APISecret: "secret"})
-	for i := 0; i < c.burst; i++ {
-		if err := c.waitToken(nil); err != nil {
-			t.Fatalf("token %d: %v", i, err)
+func TestSignatureVector(t *testing.T) {
+	c := New(Config{APIKey: "test-key", APISecret: "dGVzdC1zZWNyZXQ="})
+	sig := c.sign("GET", "/api/v3/brokerage/accounts", "1234567890", nil)
+	if sig == "" {
+		t.Error("expected non-empty signature")
+	}
+	if len(sig) != 64 {
+		t.Errorf("signature length = %d, want 64", len(sig))
+	}
+}
+
+func TestValidSymbol(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{"BTC-USD", true},
+		{"ETH-USD", true},
+		{"SOL-USDT", true},
+		{"btc-usd", false},
+		{"BTCUSD", false},
+		{"../../../etc/passwd", false},
+		{"BTC-USD?limit=1", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		got := validSymbol(tt.in)
+		if got != tt.want {
+			t.Errorf("validSymbol(%q) = %v, want %v", tt.in, got, tt.want)
 		}
 	}
 }
 
-func TestWaitTokenWithCancelledContext(t *testing.T) {
-	c := New(Config{APIKey: "key", APISecret: "secret"})
-	c.tokens = 0
-	c.lastRefill = time.Now()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if err := c.waitToken(ctx); err != context.Canceled {
-		t.Errorf("expected context.Canceled, got %v", err)
-	}
-}
-
-func TestSignatureVector(t *testing.T) {
-	c := New(Config{APIKey: "test-key", APISecret: "dGVzdC1zZWNyZXQ="})
-	ts := "1234567890"
-	method := "GET"
-	path := "/api/v3/brokerage/accounts"
-	sig := c.sign(method, path, ts, nil)
-	if sig == "" {
-		t.Error("expected non-empty signature")
-	}
-	expectLength := 64
-	if len(sig) != expectLength {
-		t.Errorf("signature length = %d, want %d", len(sig), expectLength)
+func TestGetTickerInvalidSymbol(t *testing.T) {
+	c := New(Config{})
+	_, err := c.GetTicker(context.Background(), "../../etc/passwd")
+	if err == nil {
+		t.Error("expected error for invalid symbol")
 	}
 }
 

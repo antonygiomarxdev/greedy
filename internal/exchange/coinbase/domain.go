@@ -1,11 +1,29 @@
 package coinbase
 
-import "time"
+import "regexp"
 
 const (
-	SandboxRESTURL    = "https://api-public.sandbox.exchange.coinbase.com"
+	SandboxRESTURL = "https://api-public.sandbox.exchange.coinbase.com"
+
+	pathPing         = "/api/v3/brokerage/time"
+	pathProductBook  = "/api/v3/brokerage/market/product_book"
+	pathTickerFmt    = "/api/v3/brokerage/products/%s/ticker"
+	pathCandlesFmt   = "/api/v3/brokerage/products/%s/candles"
+	pathOrders       = "/api/v3/brokerage/orders"
+	pathBatchCancel  = "/api/v3/brokerage/orders/batch_cancel"
+	pathOrderFmt     = "/api/v3/brokerage/orders/historical/%s"
+	pathOrdersBatch  = "/api/v3/brokerage/orders/historical/batch"
+	pathAccounts     = "/api/v3/brokerage/accounts"
+	pathPortfolios   = "/api/v3/brokerage/portfolios"
+	pathPositionsFmt = "/api/v3/brokerage/portfolios/%s/positions"
+
 	defaultMaxRetries = 3
+	coinbaseBurst     = 30
 )
+
+var symbolRegex = regexp.MustCompile(`^[A-Z0-9]{2,10}-[A-Z0-9]{2,10}$`)
+
+func validSymbol(s string) bool { return symbolRegex.MatchString(s) }
 
 type Config struct {
 	RESTBaseURL string
@@ -14,24 +32,10 @@ type Config struct {
 	Passphrase  string
 }
 
-type productResponse struct {
-	ProductID string `json:"product_id"`
-	Price     string `json:"price"`
-}
-
-type tickerResponse struct {
-	Price  string `json:"price"`
-	Time   string `json:"time"`
-	Bid    string `json:"bid"`
-	Ask    string `json:"ask"`
-	Volume string `json:"volume"`
-}
-
 type bookResponse struct {
 	ProductID string          `json:"product_id"`
 	Bids      []bookLevelResp `json:"bids"`
 	Asks      []bookLevelResp `json:"asks"`
-	Time      string          `json:"time"`
 }
 
 type bookLevelResp struct {
@@ -39,15 +43,18 @@ type bookLevelResp struct {
 	Size  string `json:"size"`
 }
 
+type tickerResponse struct {
+	Price string `json:"price"`
+}
+
 type candleResponse struct {
 	Candles []candleEntry `json:"candles"`
 }
 
 type candleEntry struct {
-	Start  string `json:"start"`
-	Low    string `json:"low"`
-	High   string `json:"high"`
 	Open   string `json:"open"`
+	High   string `json:"high"`
+	Low    string `json:"low"`
 	Close  string `json:"close"`
 	Volume string `json:"volume"`
 }
@@ -65,25 +72,20 @@ type orderConfig struct {
 }
 
 type marketOrderConfig struct {
-	QuoteSize string `json:"quote_size,omitempty"`
-	BaseSize  string `json:"base_size,omitempty"`
+	BaseSize string `json:"base_size,omitempty"`
 }
 
 type limitOrderConfig struct {
 	BaseSize   string `json:"base_size"`
 	LimitPrice string `json:"limit_price"`
-	PostOnly   bool   `json:"post_only"`
 }
 
 type orderResponse struct {
-	Success       bool        `json:"success"`
-	OrderID       string      `json:"order_id"`
-	ClientOrderID string      `json:"client_order_id"`
-	OrderConfig   orderConfig `json:"order_configuration"`
-	Status        string      `json:"status"`
-	FilledSize    string      `json:"filled_size"`
-	TotalFees     string      `json:"total_fees"`
-	CreatedTime   string      `json:"created_time"`
+	Success       bool   `json:"success"`
+	OrderID       string `json:"order_id"`
+	ClientOrderID string `json:"client_order_id"`
+	Status        string `json:"status"`
+	FilledSize    string `json:"filled_size"`
 }
 
 type cancelResponse struct {
@@ -97,9 +99,7 @@ type cancelResult struct {
 }
 
 type ordersResponse struct {
-	Orders  []orderEntry `json:"orders"`
-	HasNext bool         `json:"has_next"`
-	Cursor  string       `json:"cursor"`
+	Orders []orderEntry `json:"orders"`
 }
 
 type orderEntry struct {
@@ -111,10 +111,6 @@ type orderEntry struct {
 	Status        string `json:"status"`
 	FilledSize    string `json:"filled_size"`
 	FilledValue   string `json:"filled_value"`
-	AvgPrice      string `json:"average_filled_price"`
-	TotalFees     string `json:"total_fees"`
-	CreatedTime   string `json:"created_time"`
-	CancelMsg     string `json:"cancel_message,omitempty"`
 }
 
 type accountsResponse struct {
@@ -122,10 +118,9 @@ type accountsResponse struct {
 }
 
 type accountEntry struct {
-	Currency      string `json:"currency"`
-	Available     string `json:"available_balance"`
-	Hold          string `json:"hold"`
-	PortfolioUUID string `json:"portfolio_uuid"`
+	Currency  string `json:"currency"`
+	Available string `json:"available_balance"`
+	Hold      string `json:"hold"`
 }
 
 type portfoliosResponse struct {
@@ -134,7 +129,6 @@ type portfoliosResponse struct {
 
 type portfolioEntry struct {
 	UUID string `json:"uuid"`
-	Name string `json:"name"`
 }
 
 type positionResponse struct {
@@ -145,22 +139,9 @@ type positionEntry struct {
 	ProductID     string `json:"product_id"`
 	Size          string `json:"size"`
 	EntryPrice    string `json:"entry_vwap"`
-	CurrentPrice  string `json:"current_price"`
 	UnrealizedPnL string `json:"value_at_cost"`
 }
 
-type serverTimeResponse struct {
-	ISO   string `json:"iso"`
-	Epoch int64  `json:"epoch"`
-}
-
 type errorResponse struct {
-	Error   string `json:"error"`
 	Message string `json:"message"`
-	Details string `json:"error_details"`
-}
-
-type rateLimiterConfig struct {
-	Burst          int
-	RefillDuration time.Duration
 }
