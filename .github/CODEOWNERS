@@ -1,0 +1,6 @@
+# CODEOWNERS for Greedy Trading Engine
+# This file defines who must approve pull requests for specific paths.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owners for all files (unless overridden by path-specific rules)
+*       @antonygiomarxdev
