@@ -62,7 +62,9 @@ func (b *BaseConnector) Do(ctx context.Context, req *Request) (*Response, error)
 		}
 
 		data, readErr := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		if closeErr := resp.Body.Close(); closeErr != nil && readErr == nil {
+			return nil, fmt.Errorf("close response: %w", closeErr)
+		}
 		if readErr != nil {
 			return nil, fmt.Errorf("read response: %w", readErr)
 		}
