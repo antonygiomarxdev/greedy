@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/exchange/baseconnector"
 	"github.com/antonygiomarxdev/greedy/internal/ratelimiter"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
@@ -21,12 +22,11 @@ import (
 var _ shared.Exchange = (*Connector)(nil)
 
 type Connector struct {
-	client *http.Client
-	cfg    Config
-	key    string
-	secret string
-	pass   string
-	rl     ratelimiter.RateLimiter
+	baseconnector.BaseConnector
+	cfg  Config
+	key  string
+	sec  string
+	pass string
 }
 
 func New(cfg Config) *Connector {
@@ -34,12 +34,14 @@ func New(cfg Config) *Connector {
 		cfg.RESTBaseURL = SandboxRESTURL
 	}
 	return &Connector{
-		client: &http.Client{Timeout: 30 * time.Second},
-		cfg:    cfg,
-		key:    cfg.APIKey,
-		secret: cfg.APISecret,
-		pass:   cfg.Passphrase,
-		rl:     ratelimiter.NewTokenBucket(coinbaseBurst, time.Second),
+		BaseConnector: baseconnector.BaseConnector{
+			Client: &http.Client{Timeout: 30 * time.Second},
+			RL:     ratelimiter.NewTokenBucket(coinbaseBurst, time.Second),
+		},
+		cfg:  cfg,
+		key:  cfg.APIKey,
+		sec:  cfg.APISecret,
+		pass: cfg.Passphrase,
 	}
 }
 
@@ -346,71 +348,46 @@ func (c *Connector) ListPositions(ctx context.Context) ([]shared.Position, error
 }
 
 func (c *Connector) request(ctx context.Context, method, path string, body []byte) ([]byte, error) {
-	if err := c.rl.Wait(ctx); err != nil {
+	fullURL := c.cfg.RESTBaseURL + path
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	headers := map[string]string{
+		"Content-Type":        "application/json",
+		"CB-ACCESS-KEY":       c.key,
+		"CB-ACCESS-SIGN":      c.sign(method, path, timestamp, body),
+		"CB-ACCESS-TIMESTAMP": timestamp,
+	}
+	if c.pass != "" {
+		headers["CB-ACCESS-PASSPHRASE"] = c.pass
+	}
+
+	resp, err := c.Do(ctx, &baseconnector.Request{
+		Method:  method,
+		URL:     fullURL,
+		Headers: headers,
+		Body:    bodyReader,
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	url := c.cfg.RESTBaseURL + path
-
-	for attempt := 0; attempt < defaultMaxRetries; attempt++ {
-		var reqBody io.Reader
-		if body != nil {
-			reqBody = bytes.NewReader(body)
-		}
-		req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
-		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
-		}
-
-		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("CB-ACCESS-KEY", c.key)
-		req.Header.Set("CB-ACCESS-SIGN", c.sign(method, path, timestamp, body))
-		req.Header.Set("CB-ACCESS-TIMESTAMP", timestamp)
-		if c.pass != "" {
-			req.Header.Set("CB-ACCESS-PASSPHRASE", c.pass)
-		}
-
-		resp, err := c.client.Do(req)
-		if err != nil {
-			if attempt == defaultMaxRetries-1 {
-				return nil, fmt.Errorf("http request: %w", err)
-			}
-			time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
-			continue
-		}
-
-		respData, readErr := io.ReadAll(resp.Body)
-		resp.Body.Close()
-
-		if readErr != nil {
-			return nil, fmt.Errorf("read response: %w", readErr)
-		}
-
-		if resp.StatusCode == http.StatusTooManyRequests {
-			if attempt == defaultMaxRetries-1 {
-				return nil, shared.ErrRateLimited
-			}
-			time.Sleep(time.Duration(attempt+1) * time.Second)
-			continue
-		}
-
-		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, shared.ErrAuthFailed
-		}
-
-		if resp.StatusCode >= 400 {
-			var eResp errorResponse
-			if json.Unmarshal(respData, &eResp) == nil && eResp.Message != "" {
-				return nil, fmt.Errorf("coinbase: %s", eResp.Message)
-			}
-			return nil, fmt.Errorf("coinbase: http %d", resp.StatusCode)
-		}
-
-		return respData, nil
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, shared.ErrAuthFailed
 	}
 
-	return nil, shared.ErrExchangeDown
+	if resp.StatusCode >= 400 {
+		var eResp errorResponse
+		if json.Unmarshal(resp.Body, &eResp) == nil && eResp.Message != "" {
+			return nil, fmt.Errorf("coinbase: %s", eResp.Message)
+		}
+		return nil, fmt.Errorf("coinbase: http %d", resp.StatusCode)
+	}
+
+	return resp.Body, nil
 }
 
 func (c *Connector) sign(method, path, timestamp string, body []byte) string {
@@ -418,7 +395,7 @@ func (c *Connector) sign(method, path, timestamp string, body []byte) string {
 	if body != nil {
 		msg += string(body)
 	}
-	mac := hmac.New(sha256.New, []byte(c.secret))
+	mac := hmac.New(sha256.New, []byte(c.sec))
 	mac.Write([]byte(msg))
 	return hex.EncodeToString(mac.Sum(nil))
 }
