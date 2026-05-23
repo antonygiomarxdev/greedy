@@ -6,17 +6,19 @@ import (
 )
 
 type RootConfig struct {
-	DataDir string      `yaml:"data_dir"`
-	Bots    []BotConfig `yaml:"bots,omitempty"`
+	DataDir   string           `yaml:"data_dir"`
+	Bots      []BotConfig      `yaml:"bots,omitempty"`
+	Exchanges []ExchangeConfig `yaml:"exchanges,omitempty"`
 }
 
 type BotConfig struct {
-	ID          string          `yaml:"id"`
-	Name        string          `yaml:"name"`
-	Exchange    string          `yaml:"exchange"` // "paper" for paper trading
-	DataDirPath string          `yaml:"data_dir,omitempty"`
-	Strategy    StrategyConfig  `yaml:"strategy"`
-	Debouncer   DebouncerConfig `yaml:"debouncer,omitempty"`
+	ID              string          `yaml:"id"`
+	Name            string          `yaml:"name"`
+	Exchange        string          `yaml:"exchange"` // "paper", "coinbase", "binance"
+	DataDirPath     string          `yaml:"data_dir,omitempty"`
+	Strategy        StrategyConfig  `yaml:"strategy"`
+	Debouncer       DebouncerConfig `yaml:"debouncer,omitempty"`
+	CredentialLabel string          `yaml:"credential,omitempty"`
 }
 
 func (b *BotConfig) DataDir() string {
@@ -65,4 +67,21 @@ type DebouncerConfig struct {
 	Cooldown    time.Duration `yaml:"cooldown"`
 	BurstLimit  int           `yaml:"burst_limit"`
 	BurstWindow time.Duration `yaml:"burst_window"`
+}
+
+type ExchangeConfig struct {
+	Name     string          `yaml:"name"`
+	Provider string          `yaml:"provider"` // "coinbase", "binance"
+	Label    string          `yaml:"label,omitempty"`
+	Sandbox  bool            `yaml:"sandbox,omitempty"`
+	Coinbase *CoinbaseConfig `yaml:"coinbase,omitempty"`
+	Binance  *BinanceConfig  `yaml:"binance,omitempty"`
+}
+
+type CoinbaseConfig struct {
+	RESTBaseURL string `yaml:"rest_url,omitempty"`
+}
+
+type BinanceConfig struct {
+	RESTBaseURL string `yaml:"rest_url,omitempty"`
 }
