@@ -1,0 +1,15 @@
+[Unit]
+Description=Greedy Algorithmic Trading Engine
+Documentation=https://github.com/antonygiomarxdev/greedy
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/greedy serve --config /etc/greedy/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+Environment=GREEDY_MASTER_PASSWORD=/etc/greedy/master.key
+
+[Install]
+WantedBy=multi-user.target

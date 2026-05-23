@@ -4,7 +4,8 @@
       "command": "greedy",
       "args": ["mcp-serve"],
       "env": {
-        "GREEDY_HOME": "/home/you/.greedy"
+        "GREEDY_HOME": "/home/you/.greedy",
+        "GREEDY_MASTER_PASSWORD": "your-strong-password"
       }
     }
   }

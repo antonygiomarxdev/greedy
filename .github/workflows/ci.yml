@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GO_VERSION: "1.24"
+
 jobs:
   lint:
     name: Lint
@@ -17,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: ${{ env.GO_VERSION }}
       - name: go mod tidy check
         run: |
           go mod tidy
@@ -58,7 +61,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: ${{ env.GO_VERSION }}
       - name: govulncheck
         uses: golang/govulncheck-action@v1
       - name: gosec
@@ -67,16 +70,45 @@ jobs:
           args: ./...
 
   build:
-    name: Build (cross-compile)
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
-      - name: build linux
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /dev/null ./cmd/greedy
-      - name: build darwin
-        run: CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o /dev/null ./cmd/greedy
-      - name: build windows
-        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o /dev/null ./cmd/greedy
+          go-version: ${{ env.GO_VERSION }}
+      - name: inject version ldflags
+        id: version
+        run: |
+          echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+      - name: build
+        run: |
+          EXT=""
+          [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags="-s -w \
+              -X github.com/antonygiomarxdev/greedy/internal/version.Commit=${{ steps.version.outputs.sha }} \
+              -X github.com/antonygiomarxdev/greedy/internal/version.Date=${{ steps.version.outputs.date }}" \
+            -o "build/greedy-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" \
+            ./cmd/greedy
+      - name: compress
+        run: |
+          cd build
+          case "${{ matrix.goos }}" in
+            windows) zip "greedy-${{ matrix.goos }}-${{ matrix.goarch }}.zip" "greedy-${{ matrix.goos }}-${{ matrix.goarch }}.exe" ;;
+            *)       tar czf "greedy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" "greedy-${{ matrix.goos }}-${{ matrix.goarch }}" ;;
+          esac
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: greedy-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: build/greedy-${{ matrix.goos }}-${{ matrix.goarch }}.*
+          retention-days: 30

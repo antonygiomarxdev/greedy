@@ -1,0 +1,33 @@
+data_dir: ~/.greedy
+
+exchanges:
+  - name: "Binance Spot"
+    provider: binance
+    label: default
+  - name: "Coinbase"
+    provider: coinbase
+    label: default
+
+bots:
+  - id: dca-btc-binance
+    name: "BTC DCA Binance"
+    exchange: binance
+    strategy:
+      type: dca
+      symbol: BTCUSDT
+      params:
+        base_order_size: 100
+        frequency: "1h"
+        max_safety_orders: 5
+
+  - id: grid-eth-coinbase
+    name: "ETH GRID Coinbase"
+    exchange: coinbase
+    strategy:
+      type: grid
+      symbol: ETH-USD
+      params:
+        lower_bound: 2000
+        upper_bound: 4000
+        grid_levels: 10
+        order_size: 0.5
