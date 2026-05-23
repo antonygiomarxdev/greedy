@@ -5,7 +5,7 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X github.com/antonygiomarxdev/greedy/internal/version.Version=$(VERSION) -X github.com/antonygiomarxdev/greedy/internal/version.Commit=$(COMMIT) -X github.com/antonygiomarxdev/greedy/internal/version.Date=$(DATE)
 
-.PHONY: build build-all build-linux build-darwin build-windows clean test test-verbose run install-service release
+.PHONY: build build-all build-linux build-darwin build-windows clean test test-verbose run install-service release install
 
 build:
 	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(APP_NAME) ./cmd/greedy
@@ -42,3 +42,19 @@ install-service: build
 release: clean build-all
 	@echo "Release binaries in $(BUILD_DIR)/"
 	ls -lh $(BUILD_DIR)/
+
+install:
+ifeq ($(shell uname -s),Linux)
+	$(eval OS := linux)
+else ifeq ($(shell uname -s),Darwin)
+	$(eval OS := darwin)
+else
+	$(error Unsupported OS: $(shell uname -s))
+endif
+	$(eval ARCH := $(shell uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/'))
+	@echo "Downloading greedy for $(OS)/$(ARCH)..."
+	curl -fsSL "https://github.com/antonygiomarxdev/greedy/releases/latest/download/greedy-$(OS)-$(ARCH).tar.gz" \
+	  | tar xz
+	install "greedy-$(OS)-$(ARCH)" /usr/local/bin/greedy
+	rm "greedy-$(OS)-$(ARCH)"
+	@echo "Installed: $$(greedy version 2>/dev/null || true)"

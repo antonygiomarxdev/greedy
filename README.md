@@ -44,14 +44,25 @@
 ```bash
 # Linux amd64
 curl -fsSL https://github.com/antonygiomarxdev/greedy/releases/latest/download/greedy-linux-amd64.tar.gz | tar xz
-sudo mv greedy-linux-amd64 /usr/local/bin/greedy
+sudo install greedy-linux-amd64 /usr/local/bin/greedy
 
-# macOS arm64
+# macOS arm64 (Apple Silicon)
 curl -fsSL https://github.com/antonygiomarxdev/greedy/releases/latest/download/greedy-darwin-arm64.tar.gz | tar xz
-sudo mv greedy-darwin-arm64 /usr/local/bin/greedy
+sudo install greedy-darwin-arm64 /usr/local/bin/greedy
 ```
 
-**Or build from source**:
+**One-liner** (auto-detect OS/arch):
+```bash
+curl -fsSL https://github.com/antonygiomarxdev/greedy/releases/latest/download/greedy-linux-amd64.tar.gz \
+  | tar xz && sudo install greedy-linux-amd64 /usr/local/bin/greedy
+```
+
+**Or via make**:
+```bash
+sudo make install
+```
+
+**Build from source**:
 ```bash
 git clone https://github.com/antonygiomarxdev/greedy.git
 cd greedy
