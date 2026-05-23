@@ -148,18 +148,18 @@ func (c *Connector) PlaceOrder(ctx context.Context, req shared.OrderRequest) (*s
 	if !validSymbol(req.Symbol) {
 		return nil, fmt.Errorf("%w: %q", shared.ErrSymbolNotFound, req.Symbol)
 	}
-	params := map[string]string{
-		"symbol":           req.Symbol,
-		"side":             strings.ToUpper(string(req.Side)),
-		"type":             strings.ToUpper(string(req.Type)),
-		"quantity":         fmt.Sprintf("%.8f", req.Quantity),
-		"newClientOrderId": req.ClientOrderID,
+	orderReq := orderRequest{
+		Symbol:           req.Symbol,
+		Side:             strings.ToUpper(string(req.Side)),
+		Type:             strings.ToUpper(string(req.Type)),
+		Quantity:         fmt.Sprintf("%.8f", req.Quantity),
+		NewClientOrderID: req.ClientOrderID,
 	}
 	if req.Type == shared.TypeLimit {
-		params["price"] = fmt.Sprintf("%.8f", req.Price)
-		params["timeInForce"] = "GTC"
+		orderReq.Price = fmt.Sprintf("%.8f", req.Price)
+		orderReq.TimeInForce = "GTC"
 	}
-	data, err := c.signedRequest(ctx, http.MethodPost, pathOrder, params)
+	data, err := c.signedRequest(ctx, http.MethodPost, pathOrder, orderReq.toMap())
 	if err != nil {
 		return nil, err
 	}

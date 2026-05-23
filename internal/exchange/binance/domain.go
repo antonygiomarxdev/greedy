@@ -40,6 +40,33 @@ type tickerResponse struct {
 
 type klineResponse [][]any
 
+type orderRequest struct {
+	Symbol           string `json:"symbol"`
+	Side             string `json:"side"`
+	Type             string `json:"type"`
+	Quantity         string `json:"quantity"`
+	Price            string `json:"price,omitempty"`
+	TimeInForce      string `json:"timeInForce,omitempty"`
+	NewClientOrderID string `json:"newClientOrderId,omitempty"`
+}
+
+func (r *orderRequest) toMap() map[string]string {
+	m := map[string]string{
+		"symbol":           r.Symbol,
+		"side":             r.Side,
+		"type":             r.Type,
+		"quantity":         r.Quantity,
+		"newClientOrderId": r.NewClientOrderID,
+	}
+	if r.Price != "" {
+		m["price"] = r.Price
+	}
+	if r.TimeInForce != "" {
+		m["timeInForce"] = r.TimeInForce
+	}
+	return m
+}
+
 type orderResponse struct {
 	Symbol        string `json:"symbol"`
 	OrderID       int64  `json:"orderId"`
