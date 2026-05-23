@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	exch "github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
@@ -16,8 +17,9 @@ func setupServer(t *testing.T) (*Server, context.Context) {
 	ex.AddMarket("BTC-USD", paper.NewStaticFeed("BTC-USD", 50000))
 	ex.SeedLiquidity("BTC-USD", 10, 100)
 
-	sup := trading.NewSupervisor(ex, nil, trading.RestartNever)
-	srv := NewServer(ex, sup, nil)
+	reg := exch.NewRegistry(ex)
+	sup := trading.NewSupervisor(reg, nil, trading.RestartNever)
+	srv := NewServer(reg, sup, nil, nil)
 	ctx := context.Background()
 
 	return srv, ctx

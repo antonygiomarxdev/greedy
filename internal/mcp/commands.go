@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/credentials"
+	"github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
@@ -14,52 +16,59 @@ import (
 )
 
 func init() {
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &getTickerCommand{ex: ex}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &getTickerCommand{reg: reg}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &getOrderBookCommand{ex: ex}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &getOrderBookCommand{reg: reg}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &getCandlesCommand{ex: ex}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &getCandlesCommand{reg: reg}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &placeOrderCommand{ex: ex}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &placeOrderCommand{reg: reg}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &cancelOrderCommand{ex: ex}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &cancelOrderCommand{reg: reg}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &getPositionsCommand{ex: ex}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &getPositionsCommand{reg: reg}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &getBalancesCommand{ex: ex}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &getBalancesCommand{reg: reg}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
 		return &startBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
 		return &stopBotCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
 		return &listBotsCommand{sup: sup}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
-		return &addMarketCommand{ex: ex, sup: sup}
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &addMarketCommand{reg: reg, sup: sup}
 	})
-	RegisterCommandFactory(func(ex shared.Exchange, sup *trading.Supervisor) Command {
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
 		return &getBotStatusCommand{sup: sup}
+	})
+	RegisterCommandFactory(func(reg *exchange.Registry, sup *trading.Supervisor) Command {
+		return &getOrderHistoryCommand{sup: sup}
 	})
 }
 
-type getTickerCommand struct{ ex shared.Exchange }
+func resolveExchange(reg *exchange.Registry, provider string) shared.Exchange {
+	return reg.GetOrDefault(shared.ExchangeProvider(provider))
+}
+
+type getTickerCommand struct{ reg *exchange.Registry }
 
 func (c *getTickerCommand) Name() string { return NameGetTicker }
 func (c *getTickerCommand) Description() string {
-	return "Get current price for a trading symbol. Returns symbol, price, and timestamp. Symbol format: BTC-USD, ETH-USD."
+	return "Get current price for a trading symbol. Returns symbol, price, and timestamp. Symbol format: BTC-USD, ETH-USD. Optional exchange parameter to target a specific exchange."
 }
 func (c *getTickerCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}}, "required": []string{"symbol"}}
+	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "exchange": map[string]any{"type": "string", "description": "Target exchange (paper, coinbase, binance). Defaults to paper."}}, "required": []string{"symbol"}}
 }
 
 func (c *getTickerCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
@@ -67,21 +76,22 @@ func (c *getTickerCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 	if err := json.Unmarshal(rawArgs, &p); err != nil {
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
-	ticker, err := c.ex.GetTicker(ctx, p.Symbol)
+	ex := resolveExchange(c.reg, p.Exchange)
+	ticker, err := ex.GetTicker(ctx, p.Symbol)
 	if err != nil {
 		return "", err
 	}
 	return jsonString(ticker)
 }
 
-type getOrderBookCommand struct{ ex shared.Exchange }
+type getOrderBookCommand struct{ reg *exchange.Registry }
 
 func (c *getOrderBookCommand) Name() string { return NameGetOrderBook }
 func (c *getOrderBookCommand) Description() string {
-	return "Get current order book bids and asks for a symbol. Specify depth to limit levels returned. Use before placing orders to check liquidity."
+	return "Get current order book bids and asks for a symbol. Specify depth to limit levels returned. Optional exchange parameter to target a specific exchange."
 }
 func (c *getOrderBookCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "depth": map[string]any{"type": "integer", "default": 10}}, "required": []string{"symbol"}}
+	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "depth": map[string]any{"type": "integer", "default": 10}, "exchange": map[string]any{"type": "string", "description": "Target exchange (paper, coinbase, binance). Defaults to paper."}}, "required": []string{"symbol"}}
 }
 
 func (c *getOrderBookCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
@@ -92,21 +102,22 @@ func (c *getOrderBookCommand) Execute(ctx context.Context, rawArgs json.RawMessa
 	if p.Depth == 0 {
 		p.Depth = 10
 	}
-	book, err := c.ex.GetOrderBook(ctx, p.Symbol, p.Depth)
+	ex := resolveExchange(c.reg, p.Exchange)
+	book, err := ex.GetOrderBook(ctx, p.Symbol, p.Depth)
 	if err != nil {
 		return "", err
 	}
 	return jsonString(book)
 }
 
-type getCandlesCommand struct{ ex shared.Exchange }
+type getCandlesCommand struct{ reg *exchange.Registry }
 
 func (c *getCandlesCommand) Name() string { return NameGetCandles }
 func (c *getCandlesCommand) Description() string {
-	return "Get OHLCV candles for a symbol. Interval options: 1m, 5m, 15m, 1h, 4h, 1d. Use for technical analysis and backtesting."
+	return "Get OHLCV candles for a symbol. Interval options: 1m, 5m, 15m, 1h, 4h, 1d. Optional exchange parameter to target a specific exchange."
 }
 func (c *getCandlesCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "interval": map[string]any{"type": "string", "default": "1h"}, "limit": map[string]any{"type": "integer", "default": 24}}, "required": []string{"symbol"}}
+	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "interval": map[string]any{"type": "string", "default": "1h"}, "limit": map[string]any{"type": "integer", "default": 24}, "exchange": map[string]any{"type": "string", "description": "Target exchange (paper, coinbase, binance). Defaults to paper."}}, "required": []string{"symbol"}}
 }
 
 func (c *getCandlesCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
@@ -120,21 +131,22 @@ func (c *getCandlesCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 	if p.Limit == 0 {
 		p.Limit = 24
 	}
-	candles, err := c.ex.GetCandles(ctx, p.Symbol, shared.CandleInterval(p.Interval), p.Limit)
+	ex := resolveExchange(c.reg, p.Exchange)
+	candles, err := ex.GetCandles(ctx, p.Symbol, shared.CandleInterval(p.Interval), p.Limit)
 	if err != nil {
 		return "", err
 	}
 	return jsonString(candles)
 }
 
-type placeOrderCommand struct{ ex shared.Exchange }
+type placeOrderCommand struct{ reg *exchange.Registry }
 
 func (c *placeOrderCommand) Name() string { return NamePlaceOrder }
 func (c *placeOrderCommand) Description() string {
-	return "Place a market or limit order. Side: buy/sell. Type: market/limit. For market orders, omit price. Returns order ID, status, and fill details."
+	return "Place a market or limit order. Side: buy/sell. Type: market/limit. For market orders, omit price. Optional exchange parameter to target a specific exchange. Returns order ID, status, and fill details."
 }
 func (c *placeOrderCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "side": map[string]any{"type": "string", "enum": []string{"buy", "sell"}}, "type": map[string]any{"type": "string", "enum": []string{"market", "limit"}, "default": "market"}, "quantity": map[string]any{"type": "number"}, "price": map[string]any{"type": "number"}}, "required": []string{"symbol", "side", "quantity"}}
+	return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "side": map[string]any{"type": "string", "enum": []string{"buy", "sell"}}, "type": map[string]any{"type": "string", "enum": []string{"market", "limit"}, "default": "market"}, "quantity": map[string]any{"type": "number"}, "price": map[string]any{"type": "number"}, "exchange": map[string]any{"type": "string", "description": "Target exchange (paper, coinbase, binance). Defaults to paper."}}, "required": []string{"symbol", "side", "quantity"}}
 }
 
 func (c *placeOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
@@ -142,7 +154,8 @@ func (c *placeOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 	if err := json.Unmarshal(rawArgs, &p); err != nil {
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
-	order, err := c.ex.PlaceOrder(ctx, shared.OrderRequest{
+	ex := resolveExchange(c.reg, p.Exchange)
+	order, err := ex.PlaceOrder(ctx, shared.OrderRequest{
 		Symbol:   p.Symbol,
 		Side:     shared.OrderSide(p.Side),
 		Type:     shared.OrderType(p.Type),
@@ -155,14 +168,14 @@ func (c *placeOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage
 	return jsonString(order)
 }
 
-type cancelOrderCommand struct{ ex shared.Exchange }
+type cancelOrderCommand struct{ reg *exchange.Registry }
 
 func (c *cancelOrderCommand) Name() string { return NameCancelOrder }
 func (c *cancelOrderCommand) Description() string {
-	return "Cancel an open order by ID. Use list_bots or get_bot_status to find order IDs. Returns success or error if order not found."
+	return "Cancel an open order by ID. Use list_bots or get_bot_status to find order IDs. Optional exchange parameter to target a specific exchange. Returns success or error if order not found."
 }
 func (c *cancelOrderCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{"order_id": map[string]any{"type": "string"}}, "required": []string{"order_id"}}
+	return map[string]any{"type": "object", "properties": map[string]any{"order_id": map[string]any{"type": "string"}, "exchange": map[string]any{"type": "string", "description": "Target exchange (paper, coinbase, binance). Defaults to paper."}}, "required": []string{"order_id"}}
 }
 
 func (c *cancelOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
@@ -170,42 +183,53 @@ func (c *cancelOrderCommand) Execute(ctx context.Context, rawArgs json.RawMessag
 	if err := json.Unmarshal(rawArgs, &p); err != nil {
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
-	if err := c.ex.CancelOrder(ctx, p.OrderID); err != nil {
+	ex := resolveExchange(c.reg, p.Exchange)
+	if err := ex.CancelOrder(ctx, p.OrderID); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf(`{"cancelled": true, "order_id": "%s"}`, p.OrderID), nil
 }
 
-type getPositionsCommand struct{ ex shared.Exchange }
+type getPositionsCommand struct{ reg *exchange.Registry }
 
 func (c *getPositionsCommand) Name() string { return NameGetPositions }
 func (c *getPositionsCommand) Description() string {
-	return "Get all current positions with quantity, average entry price, unrealized and realized P&L. Use before placing orders to check exposure."
+	return "Get all current positions with quantity, average entry price, unrealized and realized P&L. Optional exchange parameter to target a specific exchange."
 }
 func (c *getPositionsCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{}}
+	return map[string]any{"type": "object", "properties": map[string]any{"exchange": map[string]any{"type": "string", "description": "Target exchange (paper, coinbase, binance). Defaults to paper."}}}
 }
 
-func (c *getPositionsCommand) Execute(ctx context.Context, _ json.RawMessage) (string, error) {
-	positions, err := c.ex.ListPositions(ctx)
+func (c *getPositionsCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
+	var p GetPositionsParams
+	if err := json.Unmarshal(rawArgs, &p); err != nil {
+		return "", fmt.Errorf("invalid params: %w", err)
+	}
+	ex := resolveExchange(c.reg, p.Exchange)
+	positions, err := ex.ListPositions(ctx)
 	if err != nil {
 		return "", err
 	}
 	return jsonString(positions)
 }
 
-type getBalancesCommand struct{ ex shared.Exchange }
+type getBalancesCommand struct{ reg *exchange.Registry }
 
 func (c *getBalancesCommand) Name() string { return NameGetBalances }
 func (c *getBalancesCommand) Description() string {
-	return "Get account balances for all assets. Returns free and total balance per asset. USD is the quote currency."
+	return "Get account balances for all assets. Returns free and total balance per asset. USD is the quote currency. Optional exchange parameter to target a specific exchange."
 }
 func (c *getBalancesCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{}}
+	return map[string]any{"type": "object", "properties": map[string]any{"exchange": map[string]any{"type": "string", "description": "Target exchange (paper, coinbase, binance). Defaults to paper."}}}
 }
 
-func (c *getBalancesCommand) Execute(ctx context.Context, _ json.RawMessage) (string, error) {
-	balances, err := c.ex.ListBalances(ctx)
+func (c *getBalancesCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
+	var p GetBalancesParams
+	if err := json.Unmarshal(rawArgs, &p); err != nil {
+		return "", fmt.Errorf("invalid params: %w", err)
+	}
+	ex := resolveExchange(c.reg, p.Exchange)
+	balances, err := ex.ListBalances(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -218,10 +242,21 @@ type startBotCommand struct {
 
 func (c *startBotCommand) Name() string { return NameStartBot }
 func (c *startBotCommand) Description() string {
-	return "Start a trading bot from a YAML strategy file. Supported types: dca, grid, signal. The bot runs in the daemon and places orders automatically. Use list_bots to monitor."
+	return "Start a trading bot. Provide strategy_file to load from YAML, or provide type + symbol + params inline. Supported types: dca, grid, signal. The bot runs in the daemon and places orders automatically. Use list_bots to monitor."
 }
 func (c *startBotCommand) InputSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{"strategy_file": map[string]any{"type": "string"}}, "required": []string{"strategy_file"}}
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"strategy_file": map[string]any{"type": "string", "description": "Path to YAML strategy file (omit for inline params)"},
+			"id":            map[string]any{"type": "string", "description": "Optional bot ID (auto-generated if omitted)"},
+			"name":          map[string]any{"type": "string", "description": "Optional bot name"},
+			"exchange":      map[string]any{"type": "string", "description": "Exchange to trade on (default: paper)"},
+			"type":          map[string]any{"type": "string", "description": "Strategy type: dca, grid, signal (required if no strategy_file)"},
+			"symbol":        map[string]any{"type": "string", "description": "Trading symbol, e.g. BTCUSDT or BTC-USD (required if no strategy_file)"},
+			"params":        map[string]any{"type": "object", "description": "Strategy-specific parameters"},
+		},
+	}
 }
 
 func (c *startBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
@@ -230,22 +265,50 @@ func (c *startBotCommand) Execute(ctx context.Context, rawArgs json.RawMessage) 
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
 
-	cfg, err := config.LoadStrategyFile(p.StrategyFile, nil)
-	if err != nil {
-		return "", fmt.Errorf("load strategy: %w", err)
-	}
+	var cfg config.BotConfig
+	var strat trading.Strategy
 
-	strat, err := strategy.Build(cfg.Strategy.Type, cfg.Strategy.Symbol, cfg.Strategy.Params)
-	if err != nil {
-		return "", fmt.Errorf("build strategy: %w", err)
+	if p.StrategyFile != "" {
+		loaded, err := config.LoadStrategyFile(p.StrategyFile, nil)
+		if err != nil {
+			return "", fmt.Errorf("load strategy: %w", err)
+		}
+		cfg = *loaded
+	} else {
+		if p.Type == "" || p.Symbol == "" {
+			return "", fmt.Errorf("either strategy_file or type + symbol are required")
+		}
+		if p.Params == nil {
+			p.Params = make(map[string]interface{})
+		}
+		built, err := strategy.Build(p.Type, p.Symbol, p.Params)
+		if err != nil {
+			return "", fmt.Errorf("build strategy: %w", err)
+		}
+		strat = built
+		exch := shared.ExchangeProvider(p.Exchange)
+		if p.Exchange == "" {
+			exch = shared.ProviderPaper
+		}
+		cfg = config.BotConfig{
+			ID:       p.ID,
+			Name:     p.Name,
+			Exchange: exch,
+			Strategy: config.StrategyConfig{
+				Type:   p.Type,
+				Symbol: p.Symbol,
+				Params: p.Params,
+			},
+		}
 	}
 
 	botID := cfg.ID
 	if botID == "" {
 		botID = fmt.Sprintf("bot-%d", time.Now().Unix())
 	}
+	cfg.ID = botID
 
-	if err := c.sup.StartBot(ctx, botID, *cfg, strat); err != nil {
+	if err := c.sup.StartBot(ctx, botID, cfg, strat); err != nil {
 		return "", fmt.Errorf("start bot: %w", err)
 	}
 
@@ -288,7 +351,7 @@ func (c *listBotsCommand) Execute(_ context.Context, _ json.RawMessage) (string,
 }
 
 type addMarketCommand struct {
-	ex  shared.Exchange
+	reg *exchange.Registry
 	sup *trading.Supervisor
 }
 
@@ -306,7 +369,7 @@ func (c *addMarketCommand) Execute(ctx context.Context, rawArgs json.RawMessage)
 		return "", fmt.Errorf("invalid params: %w", err)
 	}
 
-	pex, ok := c.ex.(shared.MarketLifecycleManager)
+	pex, ok := c.reg.Default().(shared.MarketLifecycleManager)
 	if !ok {
 		return "", fmt.Errorf("exchange does not support AddMarket")
 	}
@@ -361,4 +424,135 @@ func (c *getBotStatusCommand) Execute(_ context.Context, rawArgs json.RawMessage
 		return "", fmt.Errorf("bot %s not found", p.BotID)
 	}
 	return jsonString(status)
+}
+
+type setCredentialCommand struct {
+	store *credentials.SQLiteStore
+	key   *[32]byte
+}
+
+func (c *setCredentialCommand) Name() string { return "set_credential" }
+func (c *setCredentialCommand) Description() string {
+	return "Store encrypted API credentials for an exchange. Exchange: coinbase, binance. Label is a free identifier. Requires GREEDY_MASTER_PASSWORD at server start."
+}
+func (c *setCredentialCommand) InputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"exchange":   map[string]any{"type": "string"},
+			"label":      map[string]any{"type": "string"},
+			"api_key":    map[string]any{"type": "string"},
+			"api_secret": map[string]any{"type": "string"},
+			"passphrase": map[string]any{"type": "string"},
+		},
+		"required": []string{"exchange", "label", "api_key", "api_secret"},
+	}
+}
+
+func (c *setCredentialCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
+	var p SetCredentialParams
+	if err := json.Unmarshal(rawArgs, &p); err != nil {
+		return "", fmt.Errorf("invalid params: %w", err)
+	}
+	cred := credentials.Credential{
+		Exchange:   shared.ExchangeProvider(p.Exchange),
+		Label:      p.Label,
+		APIKey:     p.APIKey,
+		APISecret:  p.APISecret,
+		Passphrase: p.Passphrase,
+	}
+	if err := c.store.Set(ctx, cred, c.key); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`{"stored": true, "exchange": "%s", "label": "%s"}`, p.Exchange, p.Label), nil
+}
+
+type listCredentialsCommand struct {
+	store *credentials.SQLiteStore
+}
+
+func (c *listCredentialsCommand) Name() string { return "list_credentials" }
+func (c *listCredentialsCommand) Description() string {
+	return "List all stored credential identifiers (exchange + label). API keys are never exposed."
+}
+func (c *listCredentialsCommand) InputSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{}}
+}
+
+func (c *listCredentialsCommand) Execute(ctx context.Context, _ json.RawMessage) (string, error) {
+	metas, err := c.store.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	if metas == nil {
+		metas = []credentials.Meta{}
+	}
+	return jsonString(metas)
+}
+
+type deleteCredentialCommand struct {
+	store *credentials.SQLiteStore
+}
+
+func (c *deleteCredentialCommand) Name() string { return "delete_credential" }
+func (c *deleteCredentialCommand) Description() string {
+	return "Delete a stored credential by exchange and label."
+}
+func (c *deleteCredentialCommand) InputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"exchange": map[string]any{"type": "string"},
+			"label":    map[string]any{"type": "string"},
+		},
+		"required": []string{"exchange", "label"},
+	}
+}
+
+func (c *deleteCredentialCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
+	var p DeleteCredentialParams
+	if err := json.Unmarshal(rawArgs, &p); err != nil {
+		return "", fmt.Errorf("invalid params: %w", err)
+	}
+	if err := c.store.Delete(ctx, shared.ExchangeProvider(p.Exchange), p.Label); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`{"deleted": true, "exchange": "%s", "label": "%s"}`, p.Exchange, p.Label), nil
+}
+
+type getOrderHistoryCommand struct {
+	sup *trading.Supervisor
+}
+
+func (c *getOrderHistoryCommand) Name() string { return NameGetOrderHistory }
+func (c *getOrderHistoryCommand) Description() string {
+	return "Get historical orders with optional filters by bot_id or symbol. Returns order ID, side, type, price, quantity, filled quantity, and status."
+}
+func (c *getOrderHistoryCommand) InputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"bot_id": map[string]any{"type": "string", "description": "Filter by bot ID (optional)"},
+			"symbol": map[string]any{"type": "string", "description": "Filter by symbol (optional)"},
+			"limit":  map[string]any{"type": "integer", "default": 50, "description": "Max orders to return"},
+		},
+	}
+}
+
+func (c *getOrderHistoryCommand) Execute(ctx context.Context, rawArgs json.RawMessage) (string, error) {
+	var p GetOrderHistoryParams
+	if err := json.Unmarshal(rawArgs, &p); err != nil {
+		return "", fmt.Errorf("invalid params: %w", err)
+	}
+	if p.Limit <= 0 {
+		p.Limit = 50
+	}
+	orders, err := c.sup.GetOrderHistory(p.BotID, p.Symbol, p.Limit)
+	if err != nil {
+		return "", fmt.Errorf("get order history: %w", err)
+	}
+	if orders == nil {
+		orders = []shared.Order{}
+	}
+	return jsonString(orders)
 }

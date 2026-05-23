@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/antonygiomarxdev/greedy/internal/crypto"
+	exch "github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/mcp"
@@ -33,8 +35,16 @@ func MCPServeCommand(ctx context.Context, logger *slog.Logger) {
 	exchange.AddMarket(shared.DefaultSymbol, paper.NewRandomWalkFeed(shared.DefaultSymbol, shared.DefaultBasePrice, shared.DefaultRandomWalkDrift, shared.DefaultRandomWalkVolatility, shared.DefaultTickInterval))
 	exchange.SeedLiquidity(shared.DefaultSymbol, shared.DefaultLiquidityLevels, shared.DefaultLiquidityDepth)
 	exchange.StartFeeds(ctx)
-	supervisor := trading.NewSupervisor(exchange, database, trading.RestartNever)
-	server := mcp.NewServer(exchange, supervisor, database)
+	reg := exch.NewRegistry(exchange)
+	supervisor := trading.NewSupervisor(reg, database, trading.RestartNever)
+
+	var masterKey *[32]byte
+	if pwd := os.Getenv("GREEDY_MASTER_PASSWORD"); pwd != "" {
+		k := crypto.DeriveKey(pwd, nil)
+		masterKey = &k
+	}
+
+	server := mcp.NewServer(reg, supervisor, database, masterKey)
 	logger.Info("mcp server starting on stdio")
 	if err := server.ServeStdio(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "mcp server error: %v\n", err)

@@ -8,6 +8,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/antonygiomarxdev/greedy/internal/credentials"
+	"github.com/antonygiomarxdev/greedy/internal/crypto"
+	"github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/idempotency"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
@@ -25,6 +28,7 @@ import (
 type ServeConfig struct {
 	DataDir   string
 	Bootstrap []config.BotConfig
+	Exchanges []config.ExchangeConfig
 	MCP       bool
 }
 
@@ -56,6 +60,7 @@ func parseServeFlags(args []string) ServeConfig {
 		}
 		cfg.DataDir = root.DataDir
 		cfg.Bootstrap = root.Bots
+		cfg.Exchanges = root.Exchanges
 	}
 
 	if *stratFile != "" {
@@ -91,30 +96,64 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 		os.Exit(1)
 	}
 
-	exchange := paper.New(shared.DefaultFeeRate)
+	paperEx := paper.New(shared.DefaultFeeRate)
 
-	if err := kernel.RestoreExchange(database, exchange); err != nil {
+	if err := kernel.RestoreExchange(database, paperEx); err != nil {
 		logger.Warn("could not restore exchange state", "error", err)
 	}
 
-	marketsSeeded := map[string]bool{shared.DefaultSymbol: false}
+	reg := exchange.NewRegistry(paperEx)
+
+	masterPassword := os.Getenv("GREEDY_MASTER_PASSWORD")
+	var masterKey *[32]byte
+	if masterPassword != "" {
+		k := crypto.DeriveKey(masterPassword, nil)
+		masterKey = &k
+
+		credStore := credentials.NewSQLiteStore(database)
+		for _, exCfg := range cfg.Exchanges {
+			credLabel := exCfg.Label
+			if credLabel == "" {
+				credLabel = "default"
+			}
+			cred, err := credStore.Get(ctx, exCfg.Provider, credLabel, masterKey)
+			if err != nil {
+				logger.Warn("credential not found for exchange, skipping", "exchange", exCfg.Name, "provider", exCfg.Provider, "label", credLabel, "error", err)
+				continue
+			}
+			ex, err := exchange.NewFromConfig(exCfg, cred)
+			if err != nil {
+				logger.Warn("failed to create exchange connector", "exchange", exCfg.Name, "error", err)
+				continue
+			}
+			reg.Add(exCfg.Provider, ex)
+			logger.Info("registered exchange", "exchange", exCfg.Name, "provider", exCfg.Provider)
+		}
+	} else {
+		logger.Info("GREEDY_MASTER_PASSWORD not set — real exchanges disabled, paper only")
+	}
+
+	paperMarkets := map[string]bool{shared.DefaultSymbol: false}
 	for _, bot := range cfg.Bootstrap {
-		sym := bot.Strategy.Symbol
-		if _, ok := marketsSeeded[sym]; !ok {
-			exchange.AddMarket(sym, paper.NewRandomWalkFeed(sym, shared.DefaultBasePrice, shared.DefaultRandomWalkDrift, shared.DefaultRandomWalkVolatility, shared.DefaultTickInterval))
-			exchange.SeedLiquidity(sym, shared.DefaultLiquidityLevels, shared.DefaultLiquidityDepth)
-			marketsSeeded[sym] = true
+		ex := bot.Exchange
+		if ex == "" || ex == shared.ProviderPaper {
+			sym := bot.Strategy.Symbol
+			if _, ok := paperMarkets[sym]; !ok {
+				paperEx.AddMarket(sym, paper.NewRandomWalkFeed(sym, shared.DefaultBasePrice, shared.DefaultRandomWalkDrift, shared.DefaultRandomWalkVolatility, shared.DefaultTickInterval))
+				paperEx.SeedLiquidity(sym, shared.DefaultLiquidityLevels, shared.DefaultLiquidityDepth)
+				paperMarkets[sym] = true
+			}
 		}
 	}
-	if !marketsSeeded[shared.DefaultSymbol] {
-		exchange.AddMarket(shared.DefaultSymbol, paper.NewRandomWalkFeed(shared.DefaultSymbol, shared.DefaultBasePrice, shared.DefaultRandomWalkDrift, shared.DefaultRandomWalkVolatility, shared.DefaultTickInterval))
-		exchange.SeedLiquidity(shared.DefaultSymbol, shared.DefaultLiquidityLevels, shared.DefaultLiquidityDepth)
+	if !paperMarkets[shared.DefaultSymbol] {
+		paperEx.AddMarket(shared.DefaultSymbol, paper.NewRandomWalkFeed(shared.DefaultSymbol, shared.DefaultBasePrice, shared.DefaultRandomWalkDrift, shared.DefaultRandomWalkVolatility, shared.DefaultTickInterval))
+		paperEx.SeedLiquidity(shared.DefaultSymbol, shared.DefaultLiquidityLevels, shared.DefaultLiquidityDepth)
 	}
 
-	exchange.StartFeeds(ctx)
+	paperEx.StartFeeds(ctx)
 
 	priceStore := pricestore.NewSQLitePriceStore(database)
-	streamer := pricestreamer.New(exchange)
+	streamer := pricestreamer.New(paperEx)
 	streamer.SetPriceStore(priceStore)
 
 	tracker := markettracker.New(markettracker.BreakerConfig{
@@ -144,7 +183,7 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 
 	idempotencyStore := idempotency.NewSQLiteStore(database)
 
-	supervisor := trading.NewSupervisor(exchange, database, trading.RestartNever)
+	supervisor := trading.NewSupervisor(reg, database, trading.RestartNever)
 	supervisor.SetStreamer(streamer)
 	supervisor.SetTracker(tracker)
 	supervisor.SetIdempotency(idempotencyStore)
@@ -170,7 +209,7 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 	}
 
 	if cfg.MCP {
-		server := mcp.NewServer(exchange, supervisor, database)
+		server := mcp.NewServer(reg, supervisor, database, masterKey)
 		logger.Info("mcp server starting on stdio")
 		go func() {
 			if err := server.ServeStdio(ctx); err != nil {
@@ -191,7 +230,7 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 		logger.Warn("supervisor shutdown", "error", err)
 	}
 
-	if err := kernel.SnapshotExchange(database, exchange); err != nil {
+	if err := kernel.SnapshotExchange(database, paperEx); err != nil {
 		logger.Error("could not persist exchange state", "error", err)
 	}
 

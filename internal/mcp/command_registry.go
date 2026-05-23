@@ -1,11 +1,11 @@
 package mcp
 
 import (
-	"github.com/antonygiomarxdev/greedy/internal/shared"
+	"github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 )
 
-type commandFactory func(ex shared.Exchange, sup *trading.Supervisor) Command
+type commandFactory func(reg *exchange.Registry, sup *trading.Supervisor) Command
 
 var commandFactories []commandFactory
 
