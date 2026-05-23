@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 	"gopkg.in/yaml.v3"
 )
 
@@ -55,7 +56,7 @@ func LoadStrategyFile(path string, validator StrategyValidator) (*BotConfig, err
 
 func (b *BotConfig) Validate(validator StrategyValidator) error {
 	if b.Exchange == "" {
-		b.Exchange = "paper"
+		b.Exchange = shared.ProviderPaper
 	}
 	if b.Strategy.Type == "" {
 		return fmt.Errorf("strategy.type is required")

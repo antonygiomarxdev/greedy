@@ -10,7 +10,7 @@ import (
 
 func TestPaperExchange_New(t *testing.T) {
 	pe := New(0.001)
-	if pe.Name() != "paper" {
+	if pe.Name() != string(shared.ProviderPaper) {
 		t.Fatalf("expected name 'paper', got '%s'", pe.Name())
 	}
 }

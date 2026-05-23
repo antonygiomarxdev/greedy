@@ -26,6 +26,14 @@ const (
 	StatusRejected        OrderStatus = "rejected"
 )
 
+type ExchangeProvider string
+
+const (
+	ProviderPaper    ExchangeProvider = "paper"
+	ProviderCoinbase ExchangeProvider = "coinbase"
+	ProviderBinance  ExchangeProvider = "binance"
+)
+
 type CandleInterval string
 
 const (

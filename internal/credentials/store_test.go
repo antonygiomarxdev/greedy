@@ -37,13 +37,13 @@ func TestSetAndGet(t *testing.T) {
 	key := masterKey()
 
 	err := store.Set(ctx, credentials.Credential{
-		Exchange: "coinbase", Label: "default", APIKey: "my-api-key", APISecret: "my-api-secret",
+		Exchange: shared.ProviderCoinbase, Label: "default", APIKey: "my-api-key", APISecret: "my-api-secret",
 	}, key)
 	if err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 
-	cred, err := store.Get(ctx, "coinbase", "default", key)
+	cred, err := store.Get(ctx, shared.ProviderCoinbase, "default", key)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -61,14 +61,14 @@ func TestSetDuplicateFails(t *testing.T) {
 	key := masterKey()
 
 	err := store.Set(ctx, credentials.Credential{
-		Exchange: "binance", Label: "default", APIKey: "k1", APISecret: "s1",
+		Exchange: shared.ProviderBinance, Label: "default", APIKey: "k1", APISecret: "s1",
 	}, key)
 	if err != nil {
 		t.Fatalf("first Set: %v", err)
 	}
 
 	err = store.Set(ctx, credentials.Credential{
-		Exchange: "binance", Label: "default", APIKey: "k2", APISecret: "s2",
+		Exchange: shared.ProviderBinance, Label: "default", APIKey: "k2", APISecret: "s2",
 	}, key)
 	if err != shared.ErrCredentialExists {
 		t.Errorf("expected ErrCredentialExists, got %v", err)
@@ -92,14 +92,14 @@ func TestWrongKeyFails(t *testing.T) {
 	key := masterKey()
 
 	err := store.Set(ctx, credentials.Credential{
-		Exchange: "coinbase", Label: "default", APIKey: "secured", APISecret: "secret",
+		Exchange: shared.ProviderCoinbase, Label: "default", APIKey: "secured", APISecret: "secret",
 	}, key)
 	if err != nil {
 		t.Fatalf("Set: %v", err)
 	}
 
 	wrongKey := crypto.DeriveKey("wrong-password", nil)
-	_, err = store.Get(ctx, "coinbase", "default", &wrongKey)
+	_, err = store.Get(ctx, shared.ProviderCoinbase, "default", &wrongKey)
 	if err == nil {
 		t.Error("expected decryption failure with wrong key")
 	}
@@ -110,9 +110,9 @@ func TestListAndDelete(t *testing.T) {
 	ctx := context.Background()
 	key := masterKey()
 
-	for _, exch := range []string{"coinbase", "binance"} {
+	for _, exch := range []shared.ExchangeProvider{shared.ProviderCoinbase, shared.ProviderBinance} {
 		err := store.Set(ctx, credentials.Credential{
-			Exchange: exch, Label: "default", APIKey: "key-" + exch, APISecret: "secret-" + exch,
+			Exchange: exch, Label: "default", APIKey: "key-" + string(exch), APISecret: "secret-" + string(exch),
 		}, key)
 		if err != nil {
 			t.Fatalf("Set %s: %v", exch, err)
@@ -127,7 +127,7 @@ func TestListAndDelete(t *testing.T) {
 		t.Errorf("expected 2 credentials, got %d", len(metas))
 	}
 
-	err = store.Delete(ctx, "coinbase", "default")
+	err = store.Delete(ctx, shared.ProviderCoinbase, "default")
 	if err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
@@ -136,11 +136,11 @@ func TestListAndDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List after delete: %v", err)
 	}
-	if len(metas) != 1 || metas[0].Exchange != "binance" {
+	if len(metas) != 1 || metas[0].Exchange != shared.ProviderBinance {
 		t.Errorf("expected only binance, got %v", metas)
 	}
 
-	err = store.Delete(ctx, "coinbase", "default")
+	err = store.Delete(ctx, shared.ProviderCoinbase, "default")
 	if err != shared.ErrCredentialNotFound {
 		t.Errorf("expected ErrCredentialNotFound on double delete, got %v", err)
 	}

@@ -40,7 +40,7 @@ func New(feeRate float64) *PaperExchange {
 	return pe
 }
 
-func (pe *PaperExchange) Name() string { return "paper" }
+func (pe *PaperExchange) Name() string { return string(shared.ProviderPaper) }
 
 // AddMarket adds a new symbol with a price feed to the shared.
 func (pe *PaperExchange) AddMarket(symbol string, feed *PriceFeed) {

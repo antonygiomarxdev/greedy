@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type nilValidator struct{}
@@ -204,7 +206,7 @@ func TestBotConfig_Validate_DefaultExchange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Exchange != "paper" {
+	if cfg.Exchange != shared.ProviderPaper {
 		t.Fatal("expected exchange to default to paper")
 	}
 }

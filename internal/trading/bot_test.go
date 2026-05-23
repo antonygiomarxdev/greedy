@@ -7,6 +7,7 @@ import (
 
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 	"github.com/antonygiomarxdev/greedy/internal/trading"
 	"github.com/antonygiomarxdev/greedy/internal/trading/strategy"
 )
@@ -31,7 +32,7 @@ func TestMultiBotConcurrent(t *testing.T) {
 	dcaStrat := strategy.NewDCA(dcaCfg)
 	if err := sup.StartBot(ctx, "dca-1", config.BotConfig{
 		ID: "dca-1", Name: "DCA Test", Strategy: config.StrategyConfig{Type: "dca", Symbol: "BTC-USD"},
-		Exchange: "paper",
+		Exchange: shared.ProviderPaper,
 	}, dcaStrat); err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +46,7 @@ func TestMultiBotConcurrent(t *testing.T) {
 	gridStrat := strategy.NewGRID(gridCfg)
 	if err := sup.StartBot(ctx, "grid-1", config.BotConfig{
 		ID: "grid-1", Name: "GRID Test", Strategy: config.StrategyConfig{Type: "grid", Symbol: "ETH-USD"},
-		Exchange: "paper",
+		Exchange: shared.ProviderPaper,
 	}, gridStrat); err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +58,7 @@ func TestMultiBotConcurrent(t *testing.T) {
 	sigStrat := strategy.NewSignal(sigCfg)
 	if err := sup.StartBot(ctx, "sig-1", config.BotConfig{
 		ID: "sig-1", Name: "Signal Test", Strategy: config.StrategyConfig{Type: "signal", Symbol: "BTC-USD"},
-		Exchange: "paper",
+		Exchange: shared.ProviderPaper,
 	}, sigStrat); err != nil {
 		t.Fatal(err)
 	}

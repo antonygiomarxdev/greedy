@@ -60,7 +60,7 @@ func (s *SQLiteStore) Set(ctx context.Context, cred Credential, masterKey *[32]b
 	return nil
 }
 
-func (s *SQLiteStore) Get(ctx context.Context, exchange, label string, masterKey *[32]byte) (*Credential, error) {
+func (s *SQLiteStore) Get(ctx context.Context, exchange shared.ExchangeProvider, label string, masterKey *[32]byte) (*Credential, error) {
 	var encKey, encSecret, encPassphrase []byte
 	err := s.db.QueryRowContext(ctx,
 		"SELECT api_key, api_secret, passphrase FROM credentials WHERE exchange = ? AND label = ?",
@@ -121,7 +121,7 @@ func (s *SQLiteStore) List(ctx context.Context) ([]Meta, error) {
 	return metas, rows.Err()
 }
 
-func (s *SQLiteStore) Delete(ctx context.Context, exchange, label string) error {
+func (s *SQLiteStore) Delete(ctx context.Context, exchange shared.ExchangeProvider, label string) error {
 	result, err := s.db.ExecContext(ctx,
 		"DELETE FROM credentials WHERE exchange = ? AND label = ?",
 		exchange, label,

@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"time"
+
+	"github.com/antonygiomarxdev/greedy/internal/shared"
 )
 
 type RootConfig struct {
@@ -12,13 +14,13 @@ type RootConfig struct {
 }
 
 type BotConfig struct {
-	ID              string          `yaml:"id"`
-	Name            string          `yaml:"name"`
-	Exchange        string          `yaml:"exchange"` // "paper", "coinbase", "binance"
-	DataDirPath     string          `yaml:"data_dir,omitempty"`
-	Strategy        StrategyConfig  `yaml:"strategy"`
-	Debouncer       DebouncerConfig `yaml:"debouncer,omitempty"`
-	CredentialLabel string          `yaml:"credential,omitempty"`
+	ID              string                  `yaml:"id"`
+	Name            string                  `yaml:"name"`
+	Exchange        shared.ExchangeProvider `yaml:"exchange"` // "paper", "coinbase", "binance"
+	DataDirPath     string                  `yaml:"data_dir,omitempty"`
+	Strategy        StrategyConfig          `yaml:"strategy"`
+	Debouncer       DebouncerConfig         `yaml:"debouncer,omitempty"`
+	CredentialLabel string                  `yaml:"credential,omitempty"`
 }
 
 func (b *BotConfig) DataDir() string {
@@ -70,12 +72,12 @@ type DebouncerConfig struct {
 }
 
 type ExchangeConfig struct {
-	Name     string          `yaml:"name"`
-	Provider string          `yaml:"provider"` // "coinbase", "binance"
-	Label    string          `yaml:"label,omitempty"`
-	Sandbox  bool            `yaml:"sandbox,omitempty"`
-	Coinbase *CoinbaseConfig `yaml:"coinbase,omitempty"`
-	Binance  *BinanceConfig  `yaml:"binance,omitempty"`
+	Name     string                  `yaml:"name"`
+	Provider shared.ExchangeProvider `yaml:"provider"` // "coinbase", "binance"
+	Label    string                  `yaml:"label,omitempty"`
+	Sandbox  bool                    `yaml:"sandbox,omitempty"`
+	Coinbase *CoinbaseConfig         `yaml:"coinbase,omitempty"`
+	Binance  *BinanceConfig          `yaml:"binance,omitempty"`
 }
 
 type CoinbaseConfig struct {
