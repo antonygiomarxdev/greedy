@@ -40,16 +40,6 @@ type tickerResponse struct {
 
 type klineResponse [][]any
 
-type orderRequest struct {
-	Symbol           string `json:"symbol"`
-	Side             string `json:"side"`
-	Type             string `json:"type"`
-	Quantity         string `json:"quantity"`
-	Price            string `json:"price,omitempty"`
-	TimeInForce      string `json:"timeInForce,omitempty"`
-	NewClientOrderID string `json:"newClientOrderId,omitempty"`
-}
-
 type orderResponse struct {
 	Symbol        string `json:"symbol"`
 	OrderID       int64  `json:"orderId"`
