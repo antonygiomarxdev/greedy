@@ -52,9 +52,11 @@ else
 	$(error Unsupported OS: $(shell uname -s))
 endif
 	$(eval ARCH := $(shell uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/'))
-	@echo "Downloading greedy for $(OS)/$(ARCH)..."
-	curl -fsSL "https://github.com/antonygiomarxdev/greedy/releases/latest/download/greedy-$(OS)-$(ARCH).tar.gz" \
-	  | tar xz
-	install "greedy-$(OS)-$(ARCH)" /usr/local/bin/greedy
-	rm "greedy-$(OS)-$(ARCH)"
+	$(eval VERSION_TAG := $(shell curl -s https://api.github.com/repos/antonygiomarxdev/greedy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/'))
+	@echo "Downloading greedy version $(VERSION_TAG) for $(OS)/$(ARCH)..."
+	curl -fsSL "https://github.com/antonygiomarxdev/greedy/releases/latest/download/greedy_$(VERSION_TAG)_$(OS)_$(ARCH).tar.gz" \
+	  -o "greedy_$(VERSION_TAG)_$(OS)_$(ARCH).tar.gz"
+	tar -xzf "greedy_$(VERSION_TAG)_$(OS)_$(ARCH).tar.gz" greedy
+	install greedy /usr/local/bin/greedy
+	rm -f "greedy_$(VERSION_TAG)_$(OS)_$(ARCH).tar.gz" greedy
 	@echo "Installed: $$(greedy version 2>/dev/null || true)"
