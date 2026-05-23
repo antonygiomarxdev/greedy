@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/antonygiomarxdev/greedy/internal/debouncer"
+	"github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/idempotency"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
+	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/markettracker"
 	"github.com/antonygiomarxdev/greedy/internal/pricestreamer"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
@@ -25,14 +27,14 @@ const (
 )
 
 type Supervisor struct {
-	mu       sync.RWMutex
-	bots     map[string]*Bot
-	cancels  map[string]context.CancelFunc
-	exchange shared.Exchange
-	db       *sql.DB
-	policy   RestartPolicy
-	logger   *slog.Logger
-	wg       sync.WaitGroup
+	mu         sync.RWMutex
+	bots       map[string]*Bot
+	cancels    map[string]context.CancelFunc
+	exRegistry *exchange.Registry
+	db         *sql.DB
+	policy     RestartPolicy
+	logger     *slog.Logger
+	wg         sync.WaitGroup
 
 	streamer    pricestreamer.PriceStreamer
 	tracker     markettracker.MarketTracker
@@ -55,14 +57,14 @@ func (s *Supervisor) Streamer() pricestreamer.PriceStreamer {
 	return s.streamer
 }
 
-func NewSupervisor(ex shared.Exchange, database *sql.DB, policy RestartPolicy) *Supervisor {
+func NewSupervisor(reg *exchange.Registry, database *sql.DB, policy RestartPolicy) *Supervisor {
 	return &Supervisor{
-		bots:     make(map[string]*Bot),
-		cancels:  make(map[string]context.CancelFunc),
-		exchange: ex,
-		db:       database,
-		policy:   policy,
-		logger:   slog.Default().With("component", "supervisor"),
+		bots:       make(map[string]*Bot),
+		cancels:    make(map[string]context.CancelFunc),
+		exRegistry: reg,
+		db:         database,
+		policy:     policy,
+		logger:     slog.Default().With("component", "supervisor"),
 	}
 }
 
@@ -73,6 +75,7 @@ type BotStatus struct {
 	Symbol   string
 	Status   Status
 	Error    error
+	PnL      float64 `json:"pnl,omitempty"`
 }
 
 func (s *Supervisor) StartBot(ctx context.Context, id string, cfg config.BotConfig, strat Strategy) error {
@@ -85,7 +88,7 @@ func (s *Supervisor) StartBot(ctx context.Context, id string, cfg config.BotConf
 
 	botCtx, cancel := context.WithCancel(ctx) // #nosec G118 — cancel is stored and called in Shutdown
 
-	bot := New(id, cfg.Name, cfg, s.exchange, strat, s.db)
+	bot := New(id, cfg.Name, cfg, s.exRegistry.GetOrDefault(cfg.Exchange), strat, s.db)
 	bot.streamer = s.streamer
 	bot.tracker = s.tracker
 	bot.debouncer = buildDebouncer(cfg.Debouncer)
@@ -148,6 +151,7 @@ func (s *Supervisor) ListBots() map[string]BotStatus {
 
 	result := make(map[string]BotStatus, len(s.bots))
 	for id, bot := range s.bots {
+		pnl := computePnL(bot)
 		result[id] = BotStatus{
 			ID:       bot.ID,
 			Name:     bot.Name,
@@ -155,9 +159,57 @@ func (s *Supervisor) ListBots() map[string]BotStatus {
 			Symbol:   bot.Config.Strategy.Symbol,
 			Status:   bot.Status(),
 			Error:    bot.Error(),
+			PnL:      pnl,
 		}
 	}
 	return result
+}
+
+func computePnL(bot *Bot) float64 {
+	if bot.orderRepo == nil || bot.DB == nil {
+		return 0
+	}
+	orders, err := bot.orderRepo.ListByBot(bot.ID, 1000)
+	if err != nil {
+		return 0
+	}
+	var buyTotal, sellTotal float64
+	for _, o := range orders {
+		if o.Status != "filled" {
+			continue
+		}
+		val := o.FilledQuantity * o.Price
+		if o.Side == "buy" {
+			buyTotal += val
+		} else {
+			sellTotal += val
+		}
+	}
+	return sellTotal - buyTotal
+}
+
+func (s *Supervisor) GetOrderHistory(botID, symbol string, limit int) ([]shared.Order, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("database not available")
+	}
+	repo := db.NewOrderRepository(s.db)
+	var records []db.OrderRecord
+	var err error
+	if botID != "" {
+		records, err = repo.ListByBot(botID, limit)
+	} else if symbol != "" {
+		records, err = repo.ListBySymbol(symbol, limit)
+	} else {
+		records, err = repo.ListAll(limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	orders := make([]shared.Order, len(records))
+	for i, r := range records {
+		orders[i] = repo.ToShared(r)
+	}
+	return orders, nil
 }
 
 func (s *Supervisor) Shutdown() {

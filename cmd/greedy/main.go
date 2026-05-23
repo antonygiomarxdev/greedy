@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	backtestdelivery "github.com/antonygiomarxdev/greedy/internal/backtest/delivery"
+	creddelivery "github.com/antonygiomarxdev/greedy/internal/credentials/delivery"
 	mcpdelivery "github.com/antonygiomarxdev/greedy/internal/mcp/delivery"
 	tradingdelivery "github.com/antonygiomarxdev/greedy/internal/trading/delivery"
 	"github.com/antonygiomarxdev/greedy/internal/version"
@@ -50,6 +51,9 @@ var commands = map[string]commandHandler{
 	"version": func(ctx context.Context, logger *slog.Logger, args []string) {
 		fmt.Printf("greedy version %s (commit %s, built %s)\n", version.Version, version.Commit, version.Date)
 	},
+	"credential": func(ctx context.Context, logger *slog.Logger, args []string) {
+		creddelivery.CredentialCommand(ctx, args)
+	},
 }
 
 func main() {
@@ -57,13 +61,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, `Greedy - Sovereign Algorithmic Trading Engine
 
 Usage:
-  greedy serve --config <file>         Run daemon with multi-bot config and MCP
-  greedy serve --strategy <file>       Run single strategy as daemon
-  greedy run --strategy <file>         Run a single strategy (legacy)
-  greedy backtest --strategy <file> --data <csv>   Run backtest
-  greedy status                       Show active bots
-  greedy mcp-serve                    Start MCP server standalone (legacy)
-  greedy version                      Print version
+  greedy serve --config <file>                      Run daemon with multi-bot config and MCP
+  greedy serve --strategy <file>                    Run single strategy as daemon
+  greedy run --strategy <file>                      Run a single strategy (legacy)
+  greedy backtest --strategy <file> --data <csv>    Run backtest
+  greedy status                                    Show active bots
+  greedy mcp-serve                                 Start MCP server standalone (legacy)
+  greedy credential <set|get|list|delete> [flags]   Manage exchange API credentials
+  greedy version                                   Print version
 
 `)
 	}

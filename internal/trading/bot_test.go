@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	exch "github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
@@ -23,7 +24,8 @@ func TestMultiBotConcurrent(t *testing.T) {
 	defer cancel()
 	ex.StartFeeds(ctx)
 
-	sup := trading.NewSupervisor(ex, nil, trading.RestartNever)
+	reg := exch.NewRegistry(ex)
+	sup := trading.NewSupervisor(reg, nil, trading.RestartNever)
 
 	// Start DCA bot
 	dcaCfg := config.DefaultDCAConfig()

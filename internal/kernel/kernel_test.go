@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	exch "github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
@@ -126,7 +127,8 @@ func TestSupervisorShutdownWaitsForBots(t *testing.T) {
 		t.Fatalf("RunMigrations: %v", err)
 	}
 
-	sup := trading.NewSupervisor(ex, database, trading.RestartNever)
+	reg := exch.NewRegistry(ex)
+	sup := trading.NewSupervisor(reg, database, trading.RestartNever)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

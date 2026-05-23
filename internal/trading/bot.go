@@ -29,13 +29,14 @@ const (
 )
 
 type Bot struct {
-	ID       string
-	Name     string
-	Config   config.BotConfig
-	Exchange shared.Exchange
-	Strategy Strategy
-	DB       *sql.DB
-	repo     *db.BotRepository
+	ID        string
+	Name      string
+	Config    config.BotConfig
+	Exchange  shared.Exchange
+	Strategy  Strategy
+	DB        *sql.DB
+	repo      *db.BotRepository
+	orderRepo *db.OrderRepository
 
 	streamer    pricestreamer.PriceStreamer
 	tracker     markettracker.MarketTracker
@@ -62,6 +63,7 @@ func New(id, name string, cfg config.BotConfig, ex shared.Exchange, strat Strate
 	}
 	if database != nil {
 		b.repo = db.NewBotRepository(database)
+		b.orderRepo = db.NewOrderRepository(database)
 	}
 	return b
 }
@@ -273,6 +275,26 @@ func (b *Bot) tick(ctx context.Context) error {
 		"price", order.Price,
 		"status", order.Status,
 	)
+
+	if b.orderRepo != nil {
+		rec := db.OrderRecord{
+			ID:              order.ID,
+			BotID:           b.ID,
+			ExchangeOrderID: order.ClientOrderID,
+			Symbol:          order.Symbol,
+			Side:            string(order.Side),
+			Type:            string(order.Type),
+			Price:           order.Price,
+			Quantity:        order.Quantity,
+			FilledQuantity:  order.FilledQuantity,
+			Status:          string(order.Status),
+			CreatedAt:       order.CreatedAt,
+			UpdatedAt:       order.UpdatedAt,
+		}
+		if err := b.orderRepo.Insert(rec); err != nil {
+			b.logger.Warn("failed to persist order", "order_id", order.ID, "error", err)
+		}
+	}
 
 	NotifyOrderConfirmer(b.Strategy, signal.Price, order.ID)
 	if order.Status == shared.StatusFilled || order.Status == shared.StatusPartiallyFilled {

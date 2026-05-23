@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	exch "github.com/antonygiomarxdev/greedy/internal/exchange"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/config"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/db"
 	"github.com/antonygiomarxdev/greedy/internal/infrastructure/paper"
@@ -49,7 +50,8 @@ func RunCommand(ctx context.Context, logger *slog.Logger, path string) {
 	if botID == "" {
 		botID = fmt.Sprintf("bot-%d", time.Now().Unix())
 	}
-	supervisor := trading.NewSupervisor(exchange, database, trading.RestartNever)
+	reg := exch.NewRegistry(exchange)
+	supervisor := trading.NewSupervisor(reg, database, trading.RestartNever)
 	if err := supervisor.StartBot(ctx, botID, *cfg, strat); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting bot: %v\n", err)
 		os.Exit(1)
