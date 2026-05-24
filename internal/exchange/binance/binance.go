@@ -19,6 +19,7 @@ import (
 	"github.com/antonygiomarxdev/greedy/internal/exchange/baseconnector"
 	"github.com/antonygiomarxdev/greedy/internal/ratelimiter"
 	"github.com/antonygiomarxdev/greedy/internal/shared"
+	"github.com/gorilla/websocket"
 )
 
 var _ shared.Exchange = (*Connector)(nil)
@@ -141,7 +142,60 @@ func (c *Connector) GetCandles(ctx context.Context, symbol string, interval shar
 }
 
 func (c *Connector) SubscribeOrderBook(ctx context.Context, symbol string) (<-chan *shared.OrderBookUpdate, error) {
-	return nil, fmt.Errorf("binance: websocket not yet implemented")
+	if !validSymbol(symbol) {
+		return nil, fmt.Errorf("%w: %q", shared.ErrSymbolNotFound, symbol)
+	}
+
+	lower := strings.ToLower(symbol)
+	u := WSURL + lower + "@depth@100ms"
+
+	ws, _, err := websocket.DefaultDialer.DialContext(ctx, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("binance ws dial: %w", err)
+	}
+
+	ch := make(chan *shared.OrderBookUpdate, 32)
+
+	go func() {
+		defer ws.Close()
+		defer close(ch)
+
+		go func() {
+			<-ctx.Done()
+			ws.SetWriteDeadline(time.Now().Add(time.Second))
+			ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			ws.Close()
+		}()
+
+		for {
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				return
+			}
+			var du depthUpdate
+			if err := json.Unmarshal(msg, &du); err != nil {
+				continue
+			}
+			update := &shared.OrderBookUpdate{Symbol: symbol}
+			for _, b := range du.Bids {
+				price, _ := strconv.ParseFloat(b[0], 64)
+				qty, _ := strconv.ParseFloat(b[1], 64)
+				update.Bids = append(update.Bids, shared.BookLevel{Price: price, Quantity: qty})
+			}
+			for _, a := range du.Asks {
+				price, _ := strconv.ParseFloat(a[0], 64)
+				qty, _ := strconv.ParseFloat(a[1], 64)
+				update.Asks = append(update.Asks, shared.BookLevel{Price: price, Quantity: qty})
+			}
+			select {
+			case ch <- update:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return ch, nil
 }
 
 func (c *Connector) PlaceOrder(ctx context.Context, req shared.OrderRequest) (*shared.Order, error) {

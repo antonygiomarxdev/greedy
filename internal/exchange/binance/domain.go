@@ -5,6 +5,7 @@ import "regexp"
 const (
 	RESTURL        = "https://api.binance.com"
 	TestnetRESTURL = "https://testnet.binance.vision"
+	WSURL          = "wss://stream.binance.com:9443/ws/"
 
 	pathPing       = "/api/v3/ping"
 	pathDepth      = "/api/v3/depth"
@@ -100,4 +101,12 @@ type balanceEntry struct {
 type errorResponse struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
+}
+
+type depthUpdate struct {
+	EventType string     `json:"e"`
+	EventTime int64      `json:"E"`
+	Symbol    string     `json:"s"`
+	Bids      [][2]string `json:"b"`
+	Asks      [][2]string `json:"a"`
 }

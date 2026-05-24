@@ -20,3 +20,6 @@ Thumbs.db
 *.db
 *.db-wal
 *.db-shm
+
+# Logs
+/logs/
