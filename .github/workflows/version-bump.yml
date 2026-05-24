@@ -77,15 +77,17 @@ jobs:
 
       - name: Create and push git tag
         run: |
-          NEXT="${{ steps.next-version.outputs.next }}"
-
+          # Setup git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GH_PAT_FOR_RELEASES }}@github.com/${{ github.repository }}
+
+          NEXT="${{ steps.next-version.outputs.next }}"
 
           # Create tag on the current commit
           git tag -a "$NEXT" -m "Release $NEXT"
 
-          # Push the tag to origin (bypasses main branch protection)
+          # Push the tag to origin
           git push origin "$NEXT"
 
           echo "Successfully tagged and released $NEXT"
