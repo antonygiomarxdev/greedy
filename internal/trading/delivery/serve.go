@@ -169,7 +169,7 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 
 	for _, bot := range cfg.Bootstrap {
 		sym := bot.Strategy.Symbol
-		exProvider := shared.ExchangeProvider(bot.Exchange)
+		exProvider := bot.Exchange
 		if exProvider == "" {
 			exProvider = shared.ProviderPaper
 		}
