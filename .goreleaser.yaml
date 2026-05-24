@@ -8,7 +8,7 @@ before:
 
 builds:
   - main: ./cmd/greedy
-    binary: greedy
+    binary: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
     ldflags:
       - -s -w -X github.com/antonygiomarxdev/greedy/internal/version.Version={{ .Version }}
       - -X github.com/antonygiomarxdev/greedy/internal/version.Commit={{ .ShortCommit }}
@@ -31,6 +31,10 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+    files:
+      - LICENSE
+      - README.md
+    wrap_in_directory: false
 
 checksum:
   name_template: "checksums.txt"
