@@ -157,7 +157,7 @@ func (c *Connector) SubscribeOrderBook(ctx context.Context, symbol string) (<-ch
 	ch := make(chan *shared.OrderBookUpdate, 32)
 
 	go func() {
-		defer ws.Close()
+		defer func() { _ = ws.Close() }()
 		defer close(ch)
 
 		cleanup := make(chan struct{})
@@ -166,7 +166,7 @@ func (c *Connector) SubscribeOrderBook(ctx context.Context, symbol string) (<-ch
 		go func() {
 			select {
 			case <-ctx.Done():
-				ws.Close()
+				_ = ws.Close()
 			case <-cleanup:
 			}
 		}()
