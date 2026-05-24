@@ -1,0 +1,77 @@
+version: 2
+
+project_name: greedy
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/greedy
+    binary: greedy
+    ldflags:
+      - -s -w -X github.com/antonygiomarxdev/greedy/internal/version.Version={{ .Version }}
+      - -X github.com/antonygiomarxdev/greedy/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/antonygiomarxdev/greedy/internal/version.Date={{ .Date }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  name_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+release:
+  github:
+    owner: antonygiomarxdev
+    name: greedy
+  header: |
+    ## Greedy {{ .Version }}
+
+    Download the binary for your platform.
+
+    ### Install
+
+    ```bash
+    # Linux amd64
+    curl -fsSL https://github.com/antonygiomarxdev/greedy/releases/latest/download/{{ .ProjectName }}-linux-amd64.tar.gz | tar xz
+    sudo install {{ .ProjectName }}-linux-amd64 /usr/local/bin/{{ .ProjectName }}
+
+    # macOS arm64 (Apple Silicon)
+    curl -fsSL https://github.com/antonygiomarxdev/greedy/releases/latest/download/{{ .ProjectName }}-darwin-arm64.tar.gz | tar xz
+    sudo install {{ .ProjectName }}-darwin-arm64 /usr/local/bin/{{ .ProjectName }}
+    ```
+
+changelog:
+  sort: asc
+  use: github
+
+# brews:
+  # - repository:
+  #     owner: antonygiomarxdev
+  #     name: homebrew-tap
+  #   commit_author:
+  #     name: goreleaserbot
+  #     email: bot@goreleaser.com
+  #   homepage: "https://github.com/antonygiomarxdev/greedy"
+  #   description: "Sovereign, local-first algorithmic trading engine. Single static binary. AI-native via MDP."
+  #   license: "MIT"
+  #   install: |
+  #     bin.install "greedy"
