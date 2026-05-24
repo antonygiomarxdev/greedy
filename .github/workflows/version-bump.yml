@@ -75,45 +75,17 @@ jobs:
           echo "next=$NEXT" >> "$GITHUB_OUTPUT"
           echo "Next version: $NEXT"
 
-      - name: Update version in code
-        run: |
-          NEXT="${{ steps.next-version.outputs.next }}"
-          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          COMMIT=$(git rev-parse --short HEAD)
-
-          cat > internal/version/version.go << 'GOVER'
-          // Package version provides build-time version information injected via ldflags.
-          package version
-
-          var (
-          	Version = "dev"
-          	Commit  = "unknown"
-          	Date    = "unknown"
-          )
-          GOVER
-
-          # Replace go:generate placeholder
-          sed -i "s/Version = \"dev\"/Version = \"${NEXT#v}\"/" internal/version/version.go
-          sed -i "s/Version = \"unknown\"/Version = \"${NEXT#v}\"/" internal/version/version.go
-
-          echo "Version file updated to $NEXT"
-
-      - name: Create version bump commit and tag
+      - name: Create and push git tag
         run: |
           NEXT="${{ steps.next-version.outputs.next }}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commit version file
-          git add internal/version/version.go
-          git commit -m "chore: bump version to $NEXT" || echo "No changes to commit"
-
-          # Create tag
+          # Create tag on the current commit
           git tag -a "$NEXT" -m "Release $NEXT"
 
-          # Push commit and tag
-          git push origin main
+          # Push the tag to origin (bypasses main branch protection)
           git push origin "$NEXT"
 
-          echo "Released $NEXT"
+          echo "Successfully tagged and released $NEXT"
