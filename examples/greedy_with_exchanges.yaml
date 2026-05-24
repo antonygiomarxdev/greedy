@@ -11,7 +11,7 @@ exchanges:
 bots:
   - id: dca-btc-binance
     name: "BTC DCA Binance"
-    exchange: binance
+    exchange: paper
     strategy:
       type: dca
       symbol: BTCUSDT

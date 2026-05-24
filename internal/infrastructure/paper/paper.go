@@ -50,6 +50,17 @@ func (pe *PaperExchange) AddMarket(symbol string, feed *PriceFeed) {
 	pe.feeds[symbol] = feed
 }
 
+func (pe *PaperExchange) SetPrice(symbol string, price float64) error {
+	pe.mu.Lock()
+	defer pe.mu.Unlock()
+	feed, ok := pe.feeds[symbol]
+	if !ok {
+		return shared.ErrSymbolNotFound
+	}
+	feed.SetPrice(price)
+	return nil
+}
+
 // SeedLiquidity populates the order book with synthetic liquidity around the current price.
 func (pe *PaperExchange) SeedLiquidity(symbol string, levels int, spread float64) {
 	pe.mu.Lock()

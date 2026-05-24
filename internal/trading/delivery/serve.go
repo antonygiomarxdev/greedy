@@ -164,6 +164,7 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 
 	streamer.OnTick(func(symbol string, price float64, ts time.Time) {
 		tracker.Record(symbol, price, ts)
+		_ = paperEx.SetPrice(symbol, price)
 	})
 
 	for _, bot := range cfg.Bootstrap {
@@ -173,7 +174,19 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 			exProvider = shared.ProviderPaper
 		}
 		ex := reg.GetOrDefault(exProvider)
-		if err := streamer.RegisterWithExchange(ctx, sym, 100*time.Millisecond, ex); err != nil {
+
+		// If the bot runs on paper, but a real exchange is available in the registry,
+		// use the real exchange to stream real-time prices into the paper exchange.
+		streamEx := ex
+		if exProvider == shared.ProviderPaper {
+			if binanceEx, ok := reg.Get(shared.ExchangeProvider("binance")); ok {
+				streamEx = binanceEx
+			} else if coinbaseEx, ok := reg.Get(shared.ExchangeProvider("coinbase")); ok {
+				streamEx = coinbaseEx
+			}
+		}
+
+		if err := streamer.RegisterWithExchange(ctx, sym, 100*time.Millisecond, streamEx); err != nil {
 			logger.Error("streamer register failed", "symbol", sym, "error", err)
 		}
 	}
