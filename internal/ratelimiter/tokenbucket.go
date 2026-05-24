@@ -43,8 +43,10 @@ func (tb *TokenBucket) Wait(ctx context.Context) error {
 	tb.mu.Unlock()
 
 	waitTime := tb.calculateWait()
+	timer := time.NewTimer(waitTime)
+	defer timer.Stop()
 	select {
-	case <-time.After(waitTime):
+	case <-timer.C:
 	case <-ctx.Done():
 		return ctx.Err()
 	}

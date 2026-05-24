@@ -104,9 +104,9 @@ type errorResponse struct {
 }
 
 type depthUpdate struct {
-	EventType string     `json:"e"`
-	EventTime int64      `json:"E"`
-	Symbol    string     `json:"s"`
+	EventType string      `json:"e"`
+	EventTime int64       `json:"E"`
+	Symbol    string      `json:"s"`
 	Bids      [][2]string `json:"b"`
 	Asks      [][2]string `json:"a"`
 }

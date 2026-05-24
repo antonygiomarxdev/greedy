@@ -175,11 +175,12 @@ func (pe *PaperExchange) SubscribeOrderBook(ctx context.Context, symbol string) 
 	if err != nil {
 		return nil, err
 	}
-	_, priceCh := feed.Subscribe()
+	subID, priceCh := feed.Subscribe()
 
 	updates := make(chan *shared.OrderBookUpdate, 16)
 	go func() {
 		defer close(updates)
+		defer feed.Unsubscribe(subID)
 		for {
 			select {
 			case <-ctx.Done():

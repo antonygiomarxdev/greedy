@@ -155,21 +155,19 @@ func (c *Connector) SubscribeOrderBook(ctx context.Context, symbol string) (<-ch
 	}
 
 	ch := make(chan *shared.OrderBookUpdate, 32)
-	done := make(chan struct{})
 
 	go func() {
 		defer ws.Close()
 		defer close(ch)
-		defer close(done)
+
+		cleanup := make(chan struct{})
+		defer close(cleanup)
 
 		go func() {
 			select {
 			case <-ctx.Done():
-				ws.SetWriteDeadline(time.Now().Add(time.Second))
-				ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				ws.Close()
-			case <-done:
-				// Avoid goroutine leak if the outer read loop exits first
+			case <-cleanup:
 			}
 		}()
 
