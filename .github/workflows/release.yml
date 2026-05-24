@@ -1,39 +1,148 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full SHA of the main branch commit to release
+        required: true
 
 permissions:
   contents: write
-  packages: write
+  actions: read
 
 jobs:
-  goreleaser:
-    name: Release
+  validate-ci:
     runs-on: ubuntu-latest
+    steps:
+      - name: Check CI workflow conclusion
+        run: |
+          CONCLUSION=$(gh run list \
+            --workflow CI \
+            --commit ${{ github.event.inputs.commit_sha }} \
+            --json conclusion \
+            --jq '.[0].conclusion')
+          echo "CI workflow conclusion: $CONCLUSION"
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "ERROR: CI workflow conclusion is '$CONCLUSION', expected 'success'"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  semver:
+    needs: [validate-ci]
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.inputs.commit_sha }}
           fetch-depth: 0
+      - name: Determine next version
+        id: version
+        run: |
+          git fetch --tags --force
 
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Last tag: $LAST_TAG"
+
+          MAJOR=0; MINOR=0; PATCH=0
+          BASE="${LAST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+
+          if [ "$LAST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --oneline --format="%s" 2>/dev/null || true)
+          else
+            COMMITS=$(git log "$LAST_TAG"..HEAD --oneline --format="%s" 2>/dev/null || true)
+          fi
+
+          BUMP="patch"
+          while IFS= read -r msg; do
+            [ -z "$msg" ] && continue
+            if echo "$msg" | grep -qiE '^[a-z]+(\([^)]*\))?!:|breaking change'; then
+              BUMP="major"
+              break
+            fi
+            if echo "$msg" | grep -qiE '^feat(\([^)]*\))?:'; then
+              BUMP="minor"
+            fi
+          done <<< "$COMMITS"
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+  tag-release:
+    needs: [semver]
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.release.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - name: Create tag and release
+        id: release
+        run: |
+          VERSION=${{ needs.semver.outputs.new_version }}
+          gh release create "$VERSION" \
+            --target ${{ github.event.inputs.commit_sha }} \
+            --generate-notes
+          echo "release_tag=$VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    needs: [tag-release]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
-
-      - name: Semantic Versioning check
+      - name: Inject version ldflags
+        id: version
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          if ! echo "$TAG" | grep -qE '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$'; then
-            echo "ERROR: Tag '$TAG' must be a valid semver (vMAJOR.MINOR.PATCH)"
-            exit 1
-          fi
-          echo "VERSION=$TAG" >> "$GITHUB_ENV"
-
-      - uses: goreleaser/goreleaser-action@v7
-        with:
-          version: latest
-          args: release --clean
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Build binary
+        run: |
+          EXT=""
+          [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags="-s -w \
+              -X github.com/antonygiomarxdev/greedy/internal/version.Version=${{ needs.tag-release.outputs.release_tag }} \
+              -X github.com/antonygiomarxdev/greedy/internal/version.Commit=${{ steps.version.outputs.sha }} \
+              -X github.com/antonygiomarxdev/greedy/internal/version.Date=${{ steps.version.outputs.date }}" \
+            -o "build/greedy-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" \
+            ./cmd/greedy
+      - name: Compress
+        run: |
+          cd build
+          case "${{ matrix.goos }}" in
+            windows) zip "greedy-${{ matrix.goos }}-${{ matrix.goarch }}.zip" "greedy-${{ matrix.goos }}-${{ matrix.goarch }}.exe" ;;
+            *)       tar czf "greedy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" "greedy-${{ matrix.goos }}-${{ matrix.goarch }}" ;;
+          esac
+      - name: Upload assets to release
+        run: |
+          gh release upload ${{ needs.tag-release.outputs.release_tag }} \
+            build/greedy-${{ matrix.goos }}-${{ matrix.goarch }}.*
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
