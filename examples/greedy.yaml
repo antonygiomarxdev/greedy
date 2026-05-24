@@ -1,4 +1,4 @@
-data_dir: ~/.greedy
+data_dir: /home/pi/.greedy
 bots:
   - id: dca-btc
     name: "BTC DCA"

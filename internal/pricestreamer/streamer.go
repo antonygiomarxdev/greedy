@@ -17,6 +17,7 @@ type symbolState struct {
 	refCount int
 	cancel   context.CancelFunc
 	cache    atomic.Value
+	exchange shared.Exchange
 }
 
 type Streamer struct {
@@ -44,7 +45,7 @@ func (s *Streamer) OnTick(fn func(symbol string, price float64, ts time.Time)) {
 	s.onTick = fn
 }
 
-func (s *Streamer) Register(ctx context.Context, symbol string, interval time.Duration) error {
+func (s *Streamer) RegisterWithExchange(ctx context.Context, symbol string, interval time.Duration, ex shared.Exchange) error {
 	s.mu.Lock()
 	state, exists := s.symbols[symbol]
 	if exists {
@@ -58,6 +59,7 @@ func (s *Streamer) Register(ctx context.Context, symbol string, interval time.Du
 	state = &symbolState{
 		refCount: 1,
 		cancel:   cancel,
+		exchange: ex,
 	}
 	s.symbols[symbol] = state
 	s.mu.Unlock()
@@ -66,6 +68,10 @@ func (s *Streamer) Register(ctx context.Context, symbol string, interval time.Du
 
 	s.logger.Info("streamer registered symbol", "symbol", symbol, "interval", interval)
 	return nil
+}
+
+func (s *Streamer) Register(ctx context.Context, symbol string, interval time.Duration) error {
+	return s.RegisterWithExchange(ctx, symbol, interval, s.exchange)
 }
 
 func (s *Streamer) Unregister(symbol string) {
@@ -119,7 +125,7 @@ func (s *Streamer) fetchLoop(ctx context.Context, symbol string, interval time.D
 	defer ticker.Stop()
 
 	fetch := func() {
-		t, err := s.exchange.GetTicker(ctx, symbol)
+		t, err := state.exchange.GetTicker(ctx, symbol)
 		if err != nil {
 			s.logger.Warn("streamer fetch failed", "symbol", symbol, "error", err)
 			state.cache.Store(CachedTicker{Stale: true})

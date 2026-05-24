@@ -1,4 +1,4 @@
-data_dir: ~/.greedy
+data_dir: /home/pi/.greedy
 
 exchanges:
   - name: "Binance Spot"

@@ -168,7 +168,12 @@ func ServeCommandWithConfig(ctx context.Context, logger *slog.Logger, cfg ServeC
 
 	for _, bot := range cfg.Bootstrap {
 		sym := bot.Strategy.Symbol
-		if err := streamer.Register(ctx, sym, 100*time.Millisecond); err != nil {
+		exProvider := shared.ExchangeProvider(bot.Exchange)
+		if exProvider == "" {
+			exProvider = shared.ProviderPaper
+		}
+		ex := reg.GetOrDefault(exProvider)
+		if err := streamer.RegisterWithExchange(ctx, sym, 100*time.Millisecond, ex); err != nil {
 			logger.Error("streamer register failed", "symbol", sym, "error", err)
 		}
 	}
