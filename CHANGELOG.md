@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CHANGELOG.md following Keep a Changelog format (#13)
 - Homebrew tap via GoReleaser brews config (#13)
 
+## [0.16.3] - 2026-05-25
+
+### Fixed
+- CI: handle resp.Body.Close() error explicitly (gosec G104)
+- CI: restore orderRequest struct, refactor PlaceOrder to use typed map builder
+- Build: replace broken .goreleaser.yml (homebrew-tap 403) with .goreleaser.yaml
+
+### Changed
+- Release: archive naming `greedy-$os-$arch.tar.gz`, binary matches archive name
+- CI: trigger on `v*` tag pushes in addition to PR/branch
+- Docs: AGENTS.md consolidated as single AI onboarding document (removed SYSTEM.md, vertical-slicing-plan.md)
+- Docs: strategy-schema.md updated for Binance/Coinbase exchange support
+- CI: ruleset requires codeowner review + status checks for non-admin PRs
+- CI: CODEOWNERS set to @antonygiomarxdev
+
 ## [0.1.6] - 2026-05-22
 
 ### Added

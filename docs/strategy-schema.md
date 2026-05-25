@@ -9,7 +9,7 @@ data_dir: ~/.greedy      # optional, defaults to ~/.greedy
 bots:
   - id: my-bot           # unique bot ID
     name: "My Bot"       # display name
-    exchange: paper       # always "paper" (real exchanges pending)
+    exchange: paper       # paper | binance | coinbase
     strategy:
       type: dca           # dca | grid | signal
       symbol: BTC-USD     # BASE-QUOTE format
@@ -91,10 +91,19 @@ debouncer:
 
 All fields optional. Omitted fields use defaults.
 
-## Paper Exchange Parameters
+## Exchange Parameters
 
-All strategies use paper exchange with these defaults:
+### Paper
 - Initial balance: $100,000 USD
 - Fee: 0.1% per trade
 - Random walk price feed: drift=0.1, volatility=0.3, start=$50,000
 - Instant order fills (no pending/expired states)
+
+### Binance
+- Symbol format: BTCUSDT (no separator)
+- Spot trading only (ListPositions returns nil)
+- SubscribeOrderBook: not yet implemented
+
+### Coinbase
+- Symbol format: BTC-USD
+- SubscribeOrderBook: not yet implemented
