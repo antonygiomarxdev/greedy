@@ -110,7 +110,7 @@ jobs:
             *)       tar czf "greedy-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" "greedy-${{ matrix.goos }}-${{ matrix.goarch }}" ;;
           esac
       - name: upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: greedy-${{ matrix.goos }}-${{ matrix.goarch }}
           path: build/greedy-${{ matrix.goos }}-${{ matrix.goarch }}.*
